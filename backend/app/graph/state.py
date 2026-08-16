@@ -5,9 +5,10 @@ from typing_extensions import Annotated
 class FarmerState(TypedDict):
     farmer_id: str
     season_id: str
-    profile: dict          # location, land size, water source, past crops, budget, language
+    profile: dict          # location, land_size, water_source, past_crops, budget, language, notes
     soil_report: Optional[dict]
     weather_outlook: Optional[dict]
+    market_intel: Optional[dict]        # demand-supply gap from MarketIntelligenceAgent
     crop_shortlist: Optional[list[dict]]     # ranked crops w/ agronomic + market score
     selected_crop: Optional[str]
     input_plan: Optional[dict]               # resource/irrigation plan
@@ -21,6 +22,7 @@ class FarmerState(TypedDict):
     sell_recommendation: Optional[dict]
     sale_record: Optional[dict]
     season_feedback: Optional[dict]          # phase 8
+    crop_recommendation_summary: Optional[str]  # from CropRecommendationAgent
     phase: Literal[
         "onboarding", "diagnostics", "recommendation", "planning",
         "monitoring", "harvest_decision", "market_linkage", "feedback"

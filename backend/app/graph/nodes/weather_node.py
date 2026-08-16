@@ -1,4 +1,4 @@
-from ..agents.weather_agent import WeatherAgent
+from ...agents.weather_agent import WeatherAgent
 
 def weather_node(state):
     agent = WeatherAgent()

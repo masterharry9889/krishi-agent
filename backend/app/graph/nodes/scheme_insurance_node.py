@@ -1,4 +1,4 @@
-from ..agents.scheme_insurance_agent import SchemeInsuranceAgent
+from ...agents.scheme_insurance_agent import SchemeInsuranceAgent
 
 def scheme_insurance_node(state):
     agent = SchemeInsuranceAgent()

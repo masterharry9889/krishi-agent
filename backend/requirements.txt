@@ -1,0 +1,17 @@
+# Core
+fastapi>=0.110.0
+uvicorn>=0.28.0
+pydantic>=2.10.0
+python-dotenv>=1.0.0
+
+# MongoDB (async)
+motor>=3.6.0
+
+# Admin auth (JWT + bcrypt-free, uses secrets.compare_digest)
+python-jose[cryptography]>=3.2.0
+python-multipart>=0.0.10
+
+# ─── Reserved for future AI pipeline phases ─── (NOT required for registration)
+groq>=1.6.0
+langgraph>=1.2.0
+langchain-core>=1.5.0

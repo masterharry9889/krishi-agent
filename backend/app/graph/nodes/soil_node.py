@@ -1,4 +1,4 @@
-from ..agents.soil_agent import SoilAgent
+from ...agents.soil_agent import SoilAgent
 
 def soil_node(state):
     agent = SoilAgent()

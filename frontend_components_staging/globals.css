@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens ─────────────────────────────────────────── */
+:root {
+  /* Gold / Harvest */
+  --gold-100: #fdf3e3;
+  --gold-300: #e8b96a;
+  --gold-500: #c8893a;
+  --gold-700: #9a6420;
+
+  /* Monsoon Green */
+  --green-900: #1a3020;
+  --green-800: #243d2b;
+  --green-700: #2d5a3d;
+  --green-500: #3d7a52;
+  --green-300: #6bae85;
+  --green-100: #ddf0e7;
+
+  /* Soil Brown */
+  --soil-900: #2e1a0a;
+  --soil-800: #4a2e1a;
+  --soil-600: #7a4f2d;
+  --soil-400: #a8764a;
+
+  /* Dawn sky */
+  --dawn-50: #f8f4ee;
+  --dawn-100: #f0e8d8;
+
+  /* Ink */
+  --ink: #1c1a17;
+  --ink-muted: #5a5550;
+  --ink-subtle: #9a9490;
+
+  /* Semantic */
+  --background: var(--dawn-50);
+  --surface: #ffffff;
+  --border: rgba(74, 46, 26, 0.12);
+  --border-strong: rgba(74, 46, 26, 0.24);
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--gold-300);
+  color: var(--green-900);
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track { background: var(--dawn-100); }
+::-webkit-scrollbar-thumb {
+  background: var(--gold-300);
+  border-radius: 3px;
+}
+
+/* ─── Focus ring ─────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--gold-500);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ─── Utility: noise texture overlay ────────────────────────── */
+.texture-noise {
+  position: relative;
+}
+.texture-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Utility: section spacing ───────────────────────────────── */
+.section-pad {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+@media (min-width: 1024px) {
+  .section-pad {
+    padding-top: 7rem;
+    padding-bottom: 7rem;
+  }
+}
+
+/* ─── Connector line animation ───────────────────────────────── */
+@keyframes drawLine {
+  from { stroke-dashoffset: 1000; }
+  to   { stroke-dashoffset: 0; }
+}
+.draw-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+}
+.draw-line.visible {
+  animation: drawLine 1.4s ease forwards;
+}
+
+/* ─── Pipeline node appear ───────────────────────────────────── */
+@keyframes nodeAppear {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pipeline-node {
+  opacity: 0;
+  transition: box-shadow 0.2s;
+}
+.pipeline-node.visible {
+  animation: nodeAppear 0.5s ease forwards;
+}
+.pipeline-node:hover {
+  box-shadow: 0 8px 32px rgba(200, 137, 58, 0.18);
+}
+
+/* ─── Grain overlay on hero ──────────────────────────────────── */
+.hero-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+}
