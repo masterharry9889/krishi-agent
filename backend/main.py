@@ -4,6 +4,7 @@ Krishi Agent — Simplified Production Backend
 Farmer registration → MongoDB → Admin dashboard
 """
 import os
+import sys
 import uuid
 import secrets
 import logging
@@ -19,6 +20,11 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from jose import jwt, JWTError
 from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field
+
+# Ensure repository root is in sys.path so 'backend' module imports resolve correctly
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
 
 from backend.app.models import OnboardRequest, OnboardResponse
 from backend.app.db import FarmerService, FarmerInDB
@@ -162,7 +168,11 @@ def get_current_farmer(request: Request) -> dict:
 @app.on_event("startup")
 def startup_db():
     """Create MongoDB indexes on startup."""
-    farmer_service.create_indexes()
+    try:
+        farmer_service.create_indexes()
+        logger.info("MongoDB indexes created successfully.")
+    except Exception as e:
+        logger.warning("Could not connect to MongoDB on startup (%s). App will start in degraded mode.", e)
 
 
 # ─── Admin login (HTTP Basic → JWT) ─────────────────────────────

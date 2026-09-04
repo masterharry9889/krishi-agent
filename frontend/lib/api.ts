@@ -186,6 +186,28 @@ export interface AdminLoginResponse {
   token_type: string;
 }
 
+export const SUPPORTED_LANGUAGES: Record<string, { label: string; native: string }> = {
+  hi: { label: "Hindi", native: "हिंदी" },
+  mr: { label: "Marathi", native: "मराठी" },
+  ta: { label: "Tamil", native: "தமிழ்" },
+  pa: { label: "Punjabi", native: "ਪੰਜਾਬੀ" },
+  te: { label: "Telugu", native: "తెలుగు" },
+  kn: { label: "Kannada", native: "ಕನ್ನಡ" },
+  gu: { label: "Gujarati", native: "ગુજરાતી" },
+  bn: { label: "Bengali", native: "বাংলা" },
+  en: { label: "English", native: "English" },
+};
+
+export function formatLanguageLabel(code: string): string {
+  if (!code) return "Unknown";
+  const normalized = code.toLowerCase().trim();
+  const entry = SUPPORTED_LANGUAGES[normalized];
+  if (entry) {
+    return `${entry.label} (${entry.native})`;
+  }
+  return code.toUpperCase();
+}
+
 const ADMIN_TOKEN_KEY = "admin_token";
 
 export function getAdminToken(): string | null {
