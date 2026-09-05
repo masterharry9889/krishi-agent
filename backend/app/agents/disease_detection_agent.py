@@ -88,8 +88,10 @@ class DiseaseDetectionAgent(BaseAgent):
         "If the image is unclear, not a plant, or confidence is low, indicate human review is needed."
     )
 
-    def __init__(self, model: str = "llama-3.2-90b-vision-preview"):
-        super().__init__(model=model)
+    def __init__(self):
+        super().__init__()
+        # Vision calls use self.vision_model (from GROQ_VISION_MODEL env var)
+        # Text calls (if any) use self.model (from GROQ_MODEL env var)
 
     def _get_crop_context(self, crop_type: str) -> str:
         """Get relevant disease list for the crop."""
@@ -197,35 +199,55 @@ class DiseaseDetectionAgent(BaseAgent):
             return {"disease_detection": mock_result}
 
         # Call vision LLM
+        diagnosis_source = "vision_model_error"  # default; overridden on success
         try:
             user_content = self._build_user_content(image_base64, crop_type, district)
 
-            # For vision models, we need to pass the image
-            analysis = self.call_llm(
+            # Use the vision-capable LLM with proper multimodal message format
+            detection = self.call_vision_llm(
                 system_prompt=self.SYSTEM_PROMPT,
                 user_content=user_content,
+                image_base64=image_base64,
                 response_schema=DiseaseDetectionResult,
+                language=language,
                 max_retries=2,
-                image_base64=image_base64
             )
 
-            # Ensure confidence is float
-            if isinstance(analysis, dict):
-                analysis["confidence"] = float(analysis.get("confidence", 0.0))
-
             # Apply human review threshold
-            if analysis.get("confidence", 0.0) < self.CONFIDENCE_THRESHOLD:
-                analysis["needs_human_review"] = True
+            if detection.confidence < self.CONFIDENCE_THRESHOLD:
+                detection = detection.model_copy(
+                    update={"needs_human_review": True}
+                )
 
-            detection = DiseaseDetectionResult(**analysis)
+            diagnosis_source = (
+                "vision_model_uncertain"
+                if detection.needs_human_review
+                else "vision_model_confident"
+            )
+
+            logger.info(
+                f"[DISEASE_DETECTION] Vision model returned: "
+                f"disease={detection.disease_name} confidence={detection.confidence:.2f} "
+                f"source={diagnosis_source}"
+            )
 
         except Exception as e:
-            logger.warning(f"[DISEASE_DETECTION] Vision model failed: {e}, using fallback")
+            logger.error(
+                f"[DISEASE_DETECTION] Vision model call FAILED for "
+                f"farmer_id={state.get('farmer_id')} crop={crop_type}: {e}",
+                exc_info=True,
+            )
             detection = self._create_fallback_result(crop_type, str(e))
+            diagnosis_source = "vision_model_error"
 
         # Build agent output
         warnings = []
-        if detection.needs_human_review:
+        if diagnosis_source == "vision_model_error":
+            warnings.append(
+                "Disease detection model encountered an error. "
+                "This is a fallback result — please retry or consult your local agriculture officer."
+            )
+        elif detection.needs_human_review:
             if detection.confidence < self.CONFIDENCE_THRESHOLD:
                 warnings.append(
                     f"Confidence ({detection.confidence:.0%}) below threshold ({self.CONFIDENCE_THRESHOLD:.0%}). "
@@ -254,17 +276,23 @@ class DiseaseDetectionAgent(BaseAgent):
                     f"Symptoms observed: {', '.join(detection.symptoms_observed)}"
                 )
 
+        data_status_map = {
+            "vision_model_confident": "Image Analysis Complete",
+            "vision_model_uncertain": "Image Unclear - Retake Needed",
+            "vision_model_error": "Model Error - Using Fallback",
+        }
+
         result = {
             "agent": "disease_detection",
             "status": "success",
             "generated_at": now,
             "timestamp": now,
-            "source": "Vision-based Disease Detection (Groq Llama Vision)" if not self.use_mock else "Mock Disease Detection",
+            "source": f"Vision-based Disease Detection (Groq {self.vision_model})",
             "confidence": detection.confidence,
-            "is_estimated": self.use_mock,
-            "data_status": "Image Analysis Complete" if not detection.needs_human_review else "Image Unclear - Retake Needed",
+            "is_estimated": False,
+            "data_status": data_status_map.get(diagnosis_source, "Unknown"),
+            "diagnosis_source": diagnosis_source,
             "disease_name": detection.disease_name,
-            "confidence": detection.confidence,
             "affected_crop": detection.affected_crop,
             "symptoms_observed": detection.symptoms_observed,
             "is_healthy": detection.is_healthy,
@@ -296,7 +324,12 @@ class DiseaseDetectionAgent(BaseAgent):
         return ""
 
     def _get_mock_result(self, crop_type: str, district: str) -> dict:
-        """Return a realistic mock detection result for testing."""
+        """Return a mock detection result for development/testing.
+
+        WARNING: Mock results are keyed by crop_type from the farmer's profile,
+        NOT by actual image content. This is intentional for dev-mode — the mock
+        has no vision capability. In production, USE_MOCK_TOOLS must be false.
+        """
         import random
 
         # Mock diseases by crop
@@ -312,29 +345,36 @@ class DiseaseDetectionAgent(BaseAgent):
         disease = random.choice(diseases)
         confidence = round(random.uniform(0.65, 0.92), 2)
 
+        now = datetime.now(timezone.utc).isoformat()
         return {
             "agent": "disease_detection",
             "status": "success",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "source": "Mock Disease Detection (Test Mode)",
+            "generated_at": now,
+            "timestamp": now,
+            "source": "Mock Disease Detection (Development Mode — NOT image-aware)",
             "confidence": confidence,
             "is_estimated": True,
-            "data_status": "Mock Image Analysis",
-            "disease_name": disease,
-            "confidence": confidence,
+            "is_mock": True,
+            "data_status": "Mock Image Analysis (NOT based on uploaded photo)",
+            "diagnosis_source": "mock",
+            "disease_name": f"[MOCK] {disease}",
             "affected_crop": crop_type,
             "symptoms_observed": [
-                f"Characteristic {disease.lower()} symptoms on leaves",
-                "Discoloration and lesions visible"
+                f"[MOCK] Characteristic {disease.lower()} symptoms on leaves",
+                "[MOCK] Discoloration and lesions visible"
             ],
             "is_healthy": False,
             "needs_human_review": confidence < self.CONFIDENCE_THRESHOLD,
             "recommendations": [
-                f"Detected: {disease} on {crop_type} (confidence: {confidence:.0%}).",
-                f"Symptoms observed: Characteristic {disease.lower()} symptoms on leaves, Discoloration and lesions visible"
+                f"[MOCK] Detected: {disease} on {crop_type} (confidence: {confidence:.0%}).",
+                f"[MOCK] Symptoms observed: Characteristic {disease.lower()} symptoms on leaves, Discoloration and lesions visible"
             ],
-            "warnings": [] if confidence >= self.CONFIDENCE_THRESHOLD else [
-                f"Confidence ({confidence:.0%}) below threshold. Please retake photo."
-            ],
+            "warnings": [
+                "This is a SIMULATED result for development/testing. "
+                "The diagnosis is NOT based on the uploaded image. "
+                "Set USE_MOCK_TOOLS=false with a valid GROQ_API_KEY for real diagnosis."
+            ] + (
+                [f"Confidence ({confidence:.0%}) below threshold. Please retake photo."]
+                if confidence < self.CONFIDENCE_THRESHOLD else []
+            ),
         }

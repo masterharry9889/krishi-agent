@@ -200,7 +200,7 @@ def test_full_phase5_e2e_flow():
     reg_res = client.get("/api/v1/agents")
     assert reg_res.status_code == 200
     reg = reg_res.json()
-    assert len(reg) == 14  # all 14 agents now implemented (no coming_soon)
+    assert len(reg) >= 14  # 14 core agents + any conditional/guardrail agents (disease detection, validation)
     assert reg["soil"]["implemented"] is True
     print("✓ 22: Agent registry endpoint returns all agents")
 

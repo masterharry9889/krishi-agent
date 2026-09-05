@@ -104,6 +104,15 @@ AGENT_REGISTRY: List[AgentEntry] = [
     ),
     # Phase 3: Recommendation
     AgentEntry(
+        key="crop_recommendation",
+        display_name="Crop Recommendation",
+        description="Ranked crop shortlist based on your soil report, weather outlook, and market signals.",
+        phase="recommendation",
+        implemented=True,
+        dependencies=["soil", "weather"],
+        icon_category="crop",
+    ),
+    AgentEntry(
         key="irrigation",
         display_name="Irrigation Planning",
         description="Water scheduling and irrigation optimization based on soil moisture and forecast.",
