@@ -10,3 +10,10 @@ def needs_credit(state) -> str:
 def insurance_deadline_soon(state) -> bool:
     """Placeholder for router that might be used elsewhere."""
     return False
+
+
+def has_image_attachment(state) -> str:
+    """Return 'has_image' if state has image attachment, else 'no_image'."""
+    if state.get("has_image_attachment") and state.get("image_data"):
+        return "has_image"
+    return "no_image"

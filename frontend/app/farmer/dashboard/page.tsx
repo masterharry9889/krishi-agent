@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   getFarmerToken,
   clearFarmerToken,
@@ -257,6 +258,25 @@ export default function FarmerDashboardPage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <Link
+              href={context ? `/farmer/${context.farmer_id}/chat` : "/farmer/login"}
+              style={{
+                background: "var(--gold-500)",
+                color: "var(--green-900)",
+                borderRadius: "6px",
+                padding: "0.4rem 0.85rem",
+                fontSize: "0.8rem",
+                fontWeight: 700,
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                boxShadow: "0 2px 8px rgba(200,137,58,0.3)",
+              }}
+            >
+              💬 Chat with Agent
+            </Link>
+
             <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", padding: "0.4rem 0.85rem", fontSize: "0.8rem", color: "var(--gold-300)" }}>
               Current Season: <strong>Kharif 2026</strong>
             </div>
@@ -288,6 +308,40 @@ export default function FarmerDashboardPage() {
             ⚠️ {error}
           </div>
         )}
+
+        {/* ── 0. AI Chat & Leaf Diagnosis Banner ── */}
+        <section style={{ background: "linear-gradient(135deg, rgba(45,90,61,0.4) 0%, rgba(200,137,58,0.25) 100%)", border: "1px solid rgba(200,137,58,0.5)", borderRadius: "14px", padding: "1.5rem", marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1.25rem" }}>
+          <div style={{ flex: "1 1 280px" }}>
+            <div style={{ fontSize: "0.75rem", color: "var(--gold-300)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "0.25rem" }}>
+              💬 AI Conversational Assistant & Photo Scan
+            </div>
+            <h2 style={{ fontSize: "1.35rem", margin: "0 0 0.4rem", fontWeight: 700, color: "#fff" }}>
+              Ask Questions or Upload Leaf Photo
+            </h2>
+            <p style={{ margin: 0, fontSize: "0.875rem", color: "rgba(255,255,255,0.8)", maxWidth: "60ch" }}>
+              Chat with your Krishi AI Agent in Hindi, Marathi, or Tamil for customized season plans, or upload crop leaf photos for instant disease diagnosis.
+            </p>
+          </div>
+
+          <Link
+            href={context ? `/farmer/${context.farmer_id}/chat` : "/farmer/login"}
+            style={{
+              background: "var(--gold-500)",
+              color: "var(--green-900)",
+              textDecoration: "none",
+              borderRadius: "8px",
+              padding: "0.8rem 1.5rem",
+              fontSize: "0.925rem",
+              fontWeight: 700,
+              boxShadow: "0 4px 14px rgba(200,137,58,0.35)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            💬 Open Agent Chat & Upload Photo →
+          </Link>
+        </section>
 
         {/* ── 1. Smart Orchestrator CTA Banner ── */}
         <section style={{ background: "linear-gradient(135deg, rgba(200,137,58,0.15) 0%, rgba(107,174,133,0.15) 100%)", border: "1px solid var(--gold-500)", borderRadius: "14px", padding: "1.75rem", marginBottom: "2.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1.5rem" }}>
@@ -568,6 +622,35 @@ export default function FarmerDashboardPage() {
           </div>
         </footer>
       </main>
+
+      {/* Floating Action Chat Button */}
+      {context && (
+        <Link
+          href={`/farmer/${context.farmer_id}/chat`}
+          style={{
+            position: "fixed",
+            bottom: "1.5rem",
+            right: "1.5rem",
+            zIndex: 40,
+            background: "var(--gold-500)",
+            color: "var(--green-900)",
+            borderRadius: "9999px",
+            padding: "0.85rem 1.35rem",
+            fontWeight: 700,
+            fontSize: "0.9rem",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            textDecoration: "none",
+            border: "2px solid rgba(255,255,255,0.25)",
+            transition: "transform 0.15s ease",
+          }}
+          title="Open AI Agent Chat"
+        >
+          💬 Chat with Agent
+        </Link>
+      )}
     </div>
   );
 }

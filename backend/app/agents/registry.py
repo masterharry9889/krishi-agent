@@ -83,16 +83,26 @@ AGENT_REGISTRY: List[AgentEntry] = [
         dependencies=[],
         icon_category="market",
     ),
-    # Phase 3: Recommendation
+    # Disease Detection (conditional - triggered by image upload)
     AgentEntry(
-        key="crop_recommendation",
-        display_name="Crop Recommendation",
-        description="Ranked crop shortlist based on your soil report, weather outlook, and market signals.",
-        phase="recommendation",
+        key="disease_detection",
+        display_name="Disease Detection",
+        description="Identifies crop diseases and pests from leaf/crop photos using vision AI. Returns structured diagnosis with confidence scoring.",
+        phase="diagnostics",
         implemented=True,
-        dependencies=["soil", "weather"],
-        icon_category="crop",
+        dependencies=[],
+        icon_category="disease",
     ),
+    AgentEntry(
+        key="disease_research",
+        display_name="Disease Treatment Research",
+        description="Generates actionable, regionally-appropriate treatment plans for detected diseases. Prioritizes organic/low-cost interventions for smallholders.",
+        phase="diagnostics",
+        implemented=True,
+        dependencies=["disease_detection"],
+        icon_category="disease",
+    ),
+    # Phase 3: Recommendation
     AgentEntry(
         key="irrigation",
         display_name="Irrigation Planning",
@@ -190,6 +200,16 @@ AGENT_REGISTRY: List[AgentEntry] = [
         implemented=True,
         dependencies=["market_linkage"],
         icon_category="feedback",
+    ),
+    # Phase 9: Validation (guardrail layer — runs last, before user response)
+    AgentEntry(
+        key="validation",
+        display_name="Validation Guardrails",
+        description="Safety and quality validation layer: schema checks, confidence thresholds, pesticide cautions, financial certainty, language validation.",
+        phase="validation",
+        implemented=True,
+        dependencies=["feedback"],
+        icon_category="validation",
     ),
 ]
 

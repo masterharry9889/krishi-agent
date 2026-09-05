@@ -13,18 +13,23 @@ from .nodes import (
     input_verification_node, scheme_insurance_node, credit_node,
     storage_sell_timing_node, market_linkage_node, feedback_node,
     crop_monitoring_node, advisory_node,
-    monitoring_handoff_node, harvest_ready_signal_node, await_price_trigger_node
+    monitoring_handoff_node, harvest_ready_signal_node, await_price_trigger_node,
+    validation_node,
+    disease_detection_node, disease_research_node,
+    diagnostics_entry_node
 )
-from .router import needs_credit, insurance_deadline_soon
+from .router import needs_credit, insurance_deadline_soon, has_image_attachment
+
 
 def build_graph(checkpointer: PostgresSaver):
     graph = StateGraph(FarmerState)
 
     # Nodes for phases 1-4
     graph.add_node("onboarding", onboarding_node)
+    graph.add_node("diagnostics_entry", diagnostics_entry_node)  # fans out to soil, weather, market_intel
     graph.add_node("soil", soil_node)
     graph.add_node("weather", weather_node)
-    graph.add_node("market_intel", market_intel_node)   # moved here
+    graph.add_node("market_intel", market_intel_node)
     graph.add_node("crop_recommendation", crop_recommendation_node)
     graph.add_node("resource_irrigation", resource_irrigation_node)
     graph.add_node("budget_estimator", budget_estimator_node)
@@ -32,30 +37,45 @@ def build_graph(checkpointer: PostgresSaver):
     graph.add_node("scheme_insurance", scheme_insurance_node)
     graph.add_node("credit", credit_node)
 
+    # Disease detection nodes (conditional branch)
+    graph.add_node("disease_detection", disease_detection_node)
+    graph.add_node("disease_research", disease_research_node)
+
     # Nodes for phase 5 (monitoring) - handled by workers, but we have handoff and resume nodes
     graph.add_node("monitoring_handoff", monitoring_handoff_node)
     graph.add_node("crop_monitoring", crop_monitoring_node)
     graph.add_node("advisory", advisory_node)
-
     # Nodes for phases 6-8
     graph.add_node("storage_sell_timing", storage_sell_timing_node)
     graph.add_node("market_linkage", market_linkage_node)
     graph.add_node("feedback", feedback_node)
+    graph.add_node("validation", validation_node)
     graph.add_node("harvest_ready_signal", harvest_ready_signal_node)
     graph.add_node("await_price_trigger", await_price_trigger_node)
-
     # Entry point
     graph.set_entry_point("onboarding")
 
-    # Phase 1-4: onboarding, then parallel soil, weather, market_intel, then crop_recommendation
-    graph.add_edge("onboarding", "soil")
-    graph.add_edge("onboarding", "weather")
-    graph.add_edge("onboarding", "market_intel")        # parallel with soil and weather
-    graph.add_edge(["soil", "weather", "market_intel"], "crop_recommendation")   # fan-in from all three
+    # Conditional branch from onboarding: if image attached, run disease detection flow
+    graph.add_conditional_edges(
+        "onboarding",
+        has_image_attachment,
+        {
+            "has_image": "disease_detection",
+            "no_image": "diagnostics_entry",  # fans out to soil, weather, market_intel
+        },
+    )
+
+    # Normal diagnostic flow (when no image)
+    graph.add_edge("diagnostics_entry", "crop_recommendation")   # fan-in from soil, weather, market_intel
     graph.add_edge("crop_recommendation", "resource_irrigation")
     graph.add_edge("resource_irrigation", "budget_estimator")
     graph.add_edge("budget_estimator", "input_verification")
     graph.add_edge("input_verification", "scheme_insurance")
+
+    # Disease detection flow (when image attached)
+    graph.add_edge("disease_detection", "disease_research")
+    graph.add_edge("disease_research", "validation")
+    graph.add_edge("validation", END)
 
     # Conditional: after scheme_insurance, go to credit if needed, else to monitoring handoff
     graph.add_conditional_edges(
@@ -87,8 +107,8 @@ def build_graph(checkpointer: PostgresSaver):
         },
     )
     graph.add_edge("market_linkage", "feedback")
-    graph.add_edge("feedback", END)      # season_feedback also gets written back into
-                                           # crop_recommendation_agent's context for next season
+    graph.add_edge("feedback", "validation")
+    graph.add_edge("validation", END)      # validation runs last before user response
 
     # The await_price_trigger node is a placeholder; the price_watcher will trigger a new graph run
     # that resumes at this node (or we can have it trigger a rerun from storage_sell_timing again).

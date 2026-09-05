@@ -23,6 +23,12 @@ class FarmerState(TypedDict):
     sale_record: Optional[dict]
     season_feedback: Optional[dict]          # phase 8
     crop_recommendation_summary: Optional[str]  # from CropRecommendationAgent
+    # Disease detection fields
+    image_data: Optional[str]                # base64 encoded image or file reference
+    has_image_attachment: bool               # flag to trigger disease detection branch
+    disease_detection: Optional[dict]        # output from DiseaseDetectionAgent
+    disease_research: Optional[dict]         # output from DiseaseResearchAgent
+    validation: Optional[dict]               # output from ValidationAgent
     phase: Literal[
         "onboarding", "diagnostics", "recommendation", "planning",
         "monitoring", "harvest_decision", "market_linkage", "feedback"

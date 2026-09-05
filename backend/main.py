@@ -26,7 +26,16 @@ root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from backend.app.models import OnboardRequest, OnboardResponse
+from backend.app.models import (
+    OnboardRequest,
+    OnboardResponse,
+    FarmerLoginRequest,
+    FarmerLoginResponse,
+    FarmerSetupPasswordRequest,
+    OrchestrateRequest,
+    FarmerFeedbackRequest,
+    FarmerFeedbackResponse,
+)
 from backend.app.db import FarmerService, FarmerInDB
 
 # ─── Logging Setup ───────────────────────────────────────────────
@@ -567,6 +576,9 @@ from backend.app.agents.advisory_agent import AdvisoryAgent
 from backend.app.agents.storage_selltiming_agent import StorageSellTimingAgent
 from backend.app.agents.direct_market_linkage_agent import DirectMarketLinkageAgent
 from backend.app.agents.feedback_agent import FeedbackAgent
+from backend.app.agents.validation_agent import ValidationAgent
+from backend.app.agents.disease_detection_agent import DiseaseDetectionAgent
+from backend.app.agents.disease_research_agent import DiseaseResearchAgent
 
 # Registry of instantiated agents (all use mock tools by default; no heavy init).
 AGENT_INSTANCES = {
@@ -584,6 +596,9 @@ AGENT_INSTANCES = {
     "storage_sell_timing": StorageSellTimingAgent(),
     "market_linkage": DirectMarketLinkageAgent(),
     "feedback": FeedbackAgent(),
+    "validation": ValidationAgent(),
+    "disease_detection": DiseaseDetectionAgent(),
+    "disease_research": DiseaseResearchAgent(),
 }
 
 
@@ -798,10 +813,135 @@ def run_agent(
             timestamp=now,
         )
 
+# ─── Disease Detection: Image Upload & Analysis ──────────────────────
+
+from fastapi import File, UploadFile, Form
+from typing import Optional
+import base64
+
+
+class DiseaseDetectionRequest(BaseModel):
+    """Request for disease detection with optional image upload."""
+    message: str = Field(default="", description="Optional text message from farmer")
+    crop_type: Optional[str] = Field(default=None, description="Crop type if known")
+    # image is handled via multipart/form-data
+
+
+class DiseaseDetectionResponse(BaseModel):
+    """Response containing structured diagnosis and treatment research."""
+    status: str
+    disease_detection: Optional[dict] = None
+    disease_research: Optional[dict] = None
+    message: str = ""
+    timestamp: str
+
+
+@app.post(
+    "/api/v1/farmers/{farmer_id}/seasons/{season_id}/disease-detection",
+    tags=["farmer"],
+    response_model=DiseaseDetectionResponse,
+)
+async def disease_detection_analysis(
+    farmer_id: str,
+    season_id: str,
+    message: str = Form(default=""),
+    crop_type: Optional[str] = Form(default=None),
+    image: Optional[UploadFile] = File(default=None),
+    current_farmer: dict = Depends(get_current_farmer),
+    fs: FarmerService = Depends(get_farmer_service),
+):
+    """
+    Analyze crop/leaf image for disease detection and provide treatment recommendations.
+
+    Accepts multipart/form-data with:
+    - message: optional text from farmer
+    - crop_type: optional crop hint
+    - image: image file (JPEG, PNG, WebP) - max 10MB
+
+    Returns structured DiagnosisCard-ready payload with disease_detection and disease_research.
+    """
+    if current_farmer["farmer_id"] != farmer_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
+    if current_farmer["season_id"] and current_farmer["season_id"] != season_id:
+        raise HTTPException(status_code=403, detail="Season ID mismatch.")
+
+    # Validate image if provided
+    image_base64 = None
+    if image:
+        # Validate content type
+        allowed_types = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+        if image.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid image type: {image.content_type}. Allowed: JPEG, PNG, WebP, HEIC"
+            )
+        # Validate size (10MB max)
+        content = await image.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Image too large. Maximum 10MB.")
+        image_base64 = base64.b64encode(content).decode("utf-8")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Load farmer context for profile info
+    try:
+        context = FarmerContext(farmer_id=farmer_id, season_id=season_id, service=fs)
+        state = context.load()
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    # Prepare state for disease detection graph run
+    detection_state = {
+        **state,
+        "farmer_id": farmer_id,
+        "season_id": season_id,
+        "image_data": image_base64,
+        "has_image_attachment": image_base64 is not None,
+    }
+
+    # Override crop_type if provided
+    if crop_type:
+        detection_state["selected_crop"] = crop_type
+
+    # Run the graph - it will route to disease_detection -> disease_research -> validation
+    from backend.app.graph.build_graph import build_graph
+    from langgraph.checkpoint.memory import MemorySaver
+
+    graph = build_graph(MemorySaver())
+    try:
+        result = graph.invoke(detection_state, config={"configurable": {"thread_id": f"disease_{farmer_id}_{season_id}"}})
+    except Exception as exc:
+        logger.error(f"[DISEASE DETECTION ERROR] farmer_id={farmer_id} | error={exc}")
+        raise HTTPException(status_code=500, detail=f"Disease detection failed: {exc}")
+
+    # Extract results
+    disease_detection = result.get("disease_detection")
+    disease_research = result.get("disease_research")
+
+    # Build response message
+    if not image_base64:
+        message_text = "Please upload a crop/leaf image for disease diagnosis."
+    elif disease_detection and disease_detection.get("needs_human_review"):
+        message_text = "Image unclear. Please retake with better lighting and focus on affected area."
+    elif disease_detection and disease_detection.get("is_healthy"):
+        message_text = f"Good news! Your {disease_detection.get('affected_crop', 'crop')} appears healthy."
+    elif disease_detection:
+        disease_name = disease_detection.get("disease_name", "Unknown")
+        confidence = disease_detection.get("confidence", 0)
+        message_text = f"Detected: {disease_name} (confidence: {confidence:.0%}). See treatment recommendations below."
+    else:
+        message_text = "Analysis complete."
+
+    return DiseaseDetectionResponse(
+        status="success",
+        disease_detection=disease_detection,
+        disease_research=disease_research,
+        message=message_text,
+        timestamp=now,
+    )
 
 # ─── Phase 8 Farmer Decision Platform Services ─────────────────────
 
-from backend.app.models import OrchestrateRequest, FarmerFeedbackRequest, FarmerFeedbackResponse
 from backend.app.services.farmer_insight_service import FarmerInsightService
 from backend.app.services.agent_orchestrator import AgentOrchestrator
 
