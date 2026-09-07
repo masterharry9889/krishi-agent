@@ -29,6 +29,11 @@ class FarmerState(TypedDict):
     disease_detection: Optional[dict]        # output from DiseaseDetectionAgent
     disease_research: Optional[dict]         # output from DiseaseResearchAgent
     validation: Optional[dict]               # output from ValidationAgent
+    # Chat/intent-routing fields
+    message: Optional[str]                   # farmer's free-text chat message, used for intent routing (scheme queries, etc.)
+    user_message: Optional[str]              # alias some callers use instead of 'message'
+    # Government schemes fields
+    government_schemes: Optional[dict]       # output from GovernmentSchemesAgent
     phase: Literal[
         "onboarding", "diagnostics", "recommendation", "planning",
         "monitoring", "harvest_decision", "market_linkage", "feedback"

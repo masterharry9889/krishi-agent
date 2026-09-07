@@ -102,6 +102,16 @@ AGENT_REGISTRY: List[AgentEntry] = [
         dependencies=["disease_detection"],
         icon_category="disease",
     ),
+    # Government Schemes (conditional - triggered by scheme/policy questions in chat)
+    AgentEntry(
+        key="government_schemes",
+        display_name="Government Schemes & Policies",
+        description="Answers questions about and matches farmers to relevant central government schemes, subsidies, and policies (PM-KISAN, PMFBY, KCC, PM-KUSUM, and more).",
+        phase="diagnostics",
+        implemented=True,
+        dependencies=[],
+        icon_category="schemes",
+    ),
     # Phase 3: Recommendation
     AgentEntry(
         key="crop_recommendation",

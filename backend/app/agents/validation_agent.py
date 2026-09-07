@@ -268,7 +268,7 @@ def check_financial_certainty(agent_output: Dict[str, Any]) -> Tuple[bool, Optio
 
     # Only check agents that deal with financial products
     agent = agent_output.get("agent", "")
-    financial_agents = {"scheme_insurance", "credit", "budget_estimator"}
+    financial_agents = {"scheme_insurance", "credit", "budget_estimator", "government_schemes"}
     if agent not in financial_agents:
         return True, None
 
@@ -296,7 +296,7 @@ def check_claim_grounding(agent_output: Dict[str, Any], state: Dict[str, Any]) -
     agent = agent_output.get("agent", "")
 
     # Agents that should have verifiable sources
-    research_agents = {"crop_monitoring", "scheme_insurance", "credit", "market_intelligence", "input_verification"}
+    research_agents = {"crop_monitoring", "scheme_insurance", "credit", "market_intelligence", "input_verification", "government_schemes"}
     if agent not in research_agents:
         return True, None
 
@@ -334,6 +334,7 @@ SCHEMA_MAP = {
     "feedback": None,
     "disease_detection": DiseaseDetectionOutput,
     "disease_research": DiseaseResearchOutput,
+    "government_schemes": None,  # uses BaseAgentOutput with extra fields
 }
 
 def validate_schema(agent_output: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
@@ -534,8 +535,15 @@ class ValidationAgent:
         all_passed = True
         failure_reasons = []
 
+        # Which agent's output is the last user-facing thing said, per branch —
+        # "feedback" for the main season-planning pipeline, "disease_research"
+        # for the image-upload branch, "government_schemes" for the scheme/
+        # policy-question branch. Only that one needs the language check;
+        # everything upstream of it is intermediate state.
+        final_output_keys = {"feedback", "disease_research", "government_schemes"}
+
         for agent_key, output in agent_outputs.items():
-            result = validate_agent_output(output, state, is_final_output=(agent_key == "feedback"))
+            result = validate_agent_output(output, state, is_final_output=(agent_key in final_output_keys))
             if not result.passed:
                 all_passed = False
                 failure_reasons.append(f"{agent_key}: {result.failure_reason}")

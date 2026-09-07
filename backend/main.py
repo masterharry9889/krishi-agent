@@ -579,6 +579,7 @@ from backend.app.agents.feedback_agent import FeedbackAgent
 from backend.app.agents.validation_agent import ValidationAgent
 from backend.app.agents.disease_detection_agent import DiseaseDetectionAgent
 from backend.app.agents.disease_research_agent import DiseaseResearchAgent
+from backend.app.agents.government_schemes_agent import GovernmentSchemesAgent
 
 # Registry of instantiated agents (all use mock tools by default; no heavy init).
 AGENT_INSTANCES = {
@@ -599,6 +600,7 @@ AGENT_INSTANCES = {
     "validation": ValidationAgent(),
     "disease_detection": DiseaseDetectionAgent(),
     "disease_research": DiseaseResearchAgent(),
+    "government_schemes": GovernmentSchemesAgent(),
 }
 
 
@@ -939,6 +941,91 @@ async def disease_detection_analysis(
         message=message_text,
         timestamp=now,
     )
+
+# ─── Government Schemes: Chat-Driven Scheme/Policy Research ─────────
+
+class GovernmentSchemesRequest(BaseModel):
+    """Request for a government schemes / policy question from the farmer."""
+    message: str = Field(description="Farmer's free-text question about schemes, subsidies, or policies")
+
+
+class GovernmentSchemesResponse(BaseModel):
+    """Response containing matched schemes and a plain-language summary."""
+    status: str
+    government_schemes: Optional[dict] = None
+    message: str = ""
+    timestamp: str
+
+
+@app.post(
+    "/api/v1/farmers/{farmer_id}/seasons/{season_id}/government-schemes",
+    tags=["farmer"],
+    response_model=GovernmentSchemesResponse,
+)
+async def government_schemes_query(
+    farmer_id: str,
+    season_id: str,
+    payload: GovernmentSchemesRequest,
+    current_farmer: dict = Depends(get_current_farmer),
+    fs: FarmerService = Depends(get_farmer_service),
+):
+    """
+    Answer a farmer's question about government farming schemes, subsidies,
+    and policies, matched against their profile where available.
+
+    Returns a structured payload the frontend chat can render as a
+    scheme-match card (name, category, why it's relevant, how to apply),
+    plus a plain-language summary and a standing reminder to confirm
+    current eligibility at the official portal.
+    """
+    if current_farmer["farmer_id"] != farmer_id:
+        raise HTTPException(status_code=403, detail="Access denied.")
+    if current_farmer["season_id"] and current_farmer["season_id"] != season_id:
+        raise HTTPException(status_code=403, detail="Season ID mismatch.")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    try:
+        context = FarmerContext(farmer_id=farmer_id, season_id=season_id, service=fs)
+        state = context.load()
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    query_state = {
+        **state,
+        "farmer_id": farmer_id,
+        "season_id": season_id,
+        "message": payload.message,
+        "has_image_attachment": False,
+        "image_data": None,
+    }
+
+    from backend.app.graph.build_graph import build_graph
+    from langgraph.checkpoint.memory import MemorySaver
+
+    graph = build_graph(MemorySaver())
+    try:
+        result = graph.invoke(
+            query_state,
+            config={"configurable": {"thread_id": f"schemes_{farmer_id}_{season_id}"}},
+        )
+    except Exception as exc:
+        logger.error(f"[GOVERNMENT SCHEMES ERROR] farmer_id={farmer_id} | error={exc}")
+        raise HTTPException(status_code=500, detail=f"Government schemes lookup failed: {exc}")
+
+    government_schemes = result.get("government_schemes")
+    message_text = (
+        government_schemes.get("recommendations", ["Here's what I found."])[0]
+        if government_schemes else "I couldn't find scheme information for that question."
+    )
+
+    return GovernmentSchemesResponse(
+        status="success",
+        government_schemes=government_schemes,
+        message=message_text,
+        timestamp=now,
+    )
+
 
 # ─── Phase 8 Farmer Decision Platform Services ─────────────────────
 

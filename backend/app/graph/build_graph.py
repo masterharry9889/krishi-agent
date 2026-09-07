@@ -16,9 +16,10 @@ from .nodes import (
     monitoring_handoff_node, harvest_ready_signal_node, await_price_trigger_node,
     validation_node,
     disease_detection_node, disease_research_node,
-    diagnostics_entry_node
+    diagnostics_entry_node,
+    government_schemes_node,
 )
-from .router import needs_credit, insurance_deadline_soon, has_image_attachment
+from .router import needs_credit, insurance_deadline_soon, route_from_onboarding
 
 
 def build_graph(checkpointer: PostgresSaver):
@@ -41,6 +42,9 @@ def build_graph(checkpointer: PostgresSaver):
     graph.add_node("disease_detection", disease_detection_node)
     graph.add_node("disease_research", disease_research_node)
 
+    # Government schemes research (conditional branch, keyword-routed)
+    graph.add_node("government_schemes", government_schemes_node)
+
     # Nodes for phase 5 (monitoring) - handled by workers, but we have handoff and resume nodes
     graph.add_node("monitoring_handoff", monitoring_handoff_node)
     graph.add_node("crop_monitoring", crop_monitoring_node)
@@ -55,12 +59,15 @@ def build_graph(checkpointer: PostgresSaver):
     # Entry point
     graph.set_entry_point("onboarding")
 
-    # Conditional branch from onboarding: if image attached, run disease detection flow
+    # Conditional branch from onboarding: routes to disease detection (image
+    # attached), government schemes research (scheme/policy question), or the
+    # normal season-planning pipeline.
     graph.add_conditional_edges(
         "onboarding",
-        has_image_attachment,
+        route_from_onboarding,
         {
             "has_image": "disease_detection",
+            "scheme_query": "government_schemes",
             "no_image": "diagnostics_entry",  # fans out to soil, weather, market_intel
         },
     )
@@ -75,7 +82,12 @@ def build_graph(checkpointer: PostgresSaver):
     # Disease detection flow (when image attached)
     graph.add_edge("disease_detection", "disease_research")
     graph.add_edge("disease_research", "validation")
-    graph.add_edge("validation", END)
+
+    # Government schemes research flow (when message matches scheme keywords)
+    graph.add_edge("government_schemes", "validation")
+    # (validation -> END is registered once, further down, after the main
+    # season-planning pipeline also reaches validation — no need to repeat it
+    # here since it's the same edge either way.)
 
     # Conditional: after scheme_insurance, go to credit if needed, else to monitoring handoff
     graph.add_conditional_edges(

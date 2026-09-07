@@ -27,12 +27,23 @@ LANGUAGE_NAMES = {
 class BaseAgent:
     """Base agent providing Groq API integration with structured output parsing, retries, and language support."""
 
-    def __init__(self, model: str = "llama-3.3-70b-versatile"):
+    # Groq text model current as of this writing has moved on from
+    # llama-3.3-70b-versatile / llama-3.1-8b-instant (deprecated June 2026).
+    # See https://console.groq.com/docs/deprecations for the current list
+    # before changing this default.
+    DEFAULT_TEXT_MODEL = "openai/gpt-oss-120b"
+
+    # Vision-capable Groq model. llama-3.2-90b-vision-preview and
+    # llama-4-scout-17b-16e-instruct are both deprecated as of June 2026.
+    # qwen/qwen3.6-27b is the current generally-available multimodal model
+    # (qwen/qwen3-vl-32b-instruct exists but requires requesting access from
+    # your Groq account team, so it's not a safe default).
+    DEFAULT_VISION_MODEL = "qwen/qwen3.6-27b"
+
+    def __init__(self, model: str = None):
         load_dotenv()
-        self.model = os.environ.get("GROQ_MODEL", model)
-        self.vision_model = os.environ.get(
-            "GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"
-        )
+        self.model = os.environ.get("GROQ_MODEL", model or self.DEFAULT_TEXT_MODEL)
+        self.vision_model = os.environ.get("GROQ_VISION_MODEL", self.DEFAULT_VISION_MODEL)
         self.use_mock = os.environ.get("USE_MOCK_TOOLS", "true").lower() in ("true", "1", "yes")
 
         if self.use_mock:
@@ -55,10 +66,17 @@ class BaseAgent:
         response_schema: Type[T],
         language: str = "hi",
         max_retries: int = 2,
+        image_base64: Optional[str] = None,
     ) -> T:
         """
         Calls Groq LLM using OpenAI-compatible tool/function calling for structured JSON output matching response_schema.
         Raises ValueError if API key is missing or RuntimeError if call fails.
+
+        If image_base64 is provided, the call is routed to self.vision_model and the
+        image is attached to the user message as an image_url content block (Groq's
+        vision models expect multimodal "content" as a list of {type, ...} blocks,
+        not a plain string) — a plain-string user_content would silently never show
+        the model the image at all.
         """
         if not self.client or not self.api_key:
             raise ValueError(
@@ -84,9 +102,25 @@ class BaseAgent:
             }
         }
 
+        if image_base64:
+            # Groq vision models require multimodal content as a list of blocks.
+            # Accept either a raw base64 string or an already-formed data URI.
+            image_url = (
+                image_base64 if image_base64.startswith("data:image")
+                else f"data:image/jpeg;base64,{image_base64}"
+            )
+            user_message_content = [
+                {"type": "text", "text": user_content},
+                {"type": "image_url", "image_url": {"url": image_url}},
+            ]
+            model_to_use = self.vision_model
+        else:
+            user_message_content = user_content
+            model_to_use = self.model
+
         messages = [
             {"role": "system", "content": full_system_prompt},
-            {"role": "user", "content": user_content}
+            {"role": "user", "content": user_message_content}
         ]
 
         for attempt in range(1, max_retries + 1):
@@ -99,12 +133,12 @@ class BaseAgent:
                     })
 
                 response = self.client.chat.completions.create(
-                    model=self.model,
+                    model=model_to_use,
                     messages=current_messages,
                     tools=[tool_definition],
                     tool_choice={"type": "function", "function": {"name": tool_name}},
                     temperature=0.2,
-                    timeout=10.0,
+                    timeout=20.0 if image_base64 else 10.0,
                 )
 
                 tool_calls = response.choices[0].message.tool_calls

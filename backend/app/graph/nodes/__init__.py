@@ -16,3 +16,4 @@ from .validation_node import validation_node
 from .disease_detection_node import disease_detection_node
 from .disease_research_node import disease_research_node
 from .diagnostics_entry_node import diagnostics_entry_node
+from .government_schemes_node import government_schemes_node

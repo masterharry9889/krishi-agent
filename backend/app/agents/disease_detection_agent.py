@@ -88,10 +88,11 @@ class DiseaseDetectionAgent(BaseAgent):
         "If the image is unclear, not a plant, or confidence is low, indicate human review is needed."
     )
 
-    def __init__(self):
-        super().__init__()
-        # Vision calls use self.vision_model (from GROQ_VISION_MODEL env var)
-        # Text calls (if any) use self.model (from GROQ_MODEL env var)
+    def __init__(self, model: str = None):
+        # No model override here — BaseAgent.vision_model (qwen/qwen3.6-27b by
+        # default, overridable via GROQ_VISION_MODEL) is what actually gets used
+        # for image calls. llama-3.2-90b-vision-preview is deprecated on Groq.
+        super().__init__(model=model)
 
     def _get_crop_context(self, crop_type: str) -> str:
         """Get relevant disease list for the crop."""
@@ -203,21 +204,21 @@ class DiseaseDetectionAgent(BaseAgent):
         try:
             user_content = self._build_user_content(image_base64, crop_type, district)
 
-            # Use the vision-capable LLM with proper multimodal message format
-            detection = self.call_vision_llm(
+            # For vision models, we need to pass the image.
+            # call_llm returns a validated DiseaseDetectionResult instance (not a
+            # dict) — work with it as a model, then re-apply the human-review
+            # threshold and rebuild before returning.
+            analysis: DiseaseDetectionResult = self.call_llm(
                 system_prompt=self.SYSTEM_PROMPT,
                 user_content=user_content,
-                image_base64=image_base64,
                 response_schema=DiseaseDetectionResult,
                 language=language,
                 max_retries=2,
+                image_base64=image_base64
             )
 
-            # Apply human review threshold
-            if detection.confidence < self.CONFIDENCE_THRESHOLD:
-                detection = detection.model_copy(
-                    update={"needs_human_review": True}
-                )
+            needs_review = analysis.needs_human_review or analysis.confidence < self.CONFIDENCE_THRESHOLD
+            detection = analysis.model_copy(update={"needs_human_review": needs_review})
 
             diagnosis_source = (
                 "vision_model_uncertain"
