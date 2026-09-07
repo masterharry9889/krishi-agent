@@ -39,13 +39,14 @@ export function getFarmerToken(): string | null {
 export function setFarmerToken(token: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(FARMER_TOKEN_KEY, token);
-  document.cookie = `farmer_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `farmer_token=${token}; path=/; max-age=86400; SameSite=Lax${secure}`;
 }
 
 export function clearFarmerToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(FARMER_TOKEN_KEY);
-  document.cookie = "farmer_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie = "farmer_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
 }
 
 export function farmerAuthHeaders(): Record<string, string> {
@@ -218,11 +219,14 @@ export function getAdminToken(): string | null {
 export function setAdminToken(token: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `admin_token=${token}; path=/; max-age=86400; SameSite=Lax${secure}`;
 }
 
 export function clearAdminToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(ADMIN_TOKEN_KEY);
+  document.cookie = "admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
 }
 
 export async function adminLogin(
@@ -514,17 +518,39 @@ export async function runAgent(
   return res.json() as Promise<AgentRunResult>;
 }
 
+/**
+ * Specific agents whose outputs are required to populate the farmer dashboard:
+ * 1. soil (soil fertility & deficiency nudges)
+ * 2. weather (weather forecasts & risk alerts)
+ * 3. market_intelligence (APMC mandi prices & trends)
+ * 4. crop_recommendation (recommended crop decision card)
+ * 5. irrigation (water schedule & input requirements)
+ * 6. budget_estimator (input cost, expected net margin & financial snapshot)
+ */
+export const DASHBOARD_REQUIRED_AGENTS = [
+  "soil",
+  "weather",
+  "market_intelligence",
+  "crop_recommendation",
+  "irrigation",
+  "budget_estimator",
+];
+
 export async function orchestrateFarmAnalysis(
   farmerId: string,
   seasonId: string,
-  forceRefresh = false
+  forceRefresh = false,
+  agentsToRun: string[] = DASHBOARD_REQUIRED_AGENTS
 ): Promise<OrchestrateResponse> {
   const res = await fetch(
     `${BACKEND_URL}/api/v1/farmers/${farmerId}/seasons/${seasonId}/orchestrate`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json", ...farmerAuthHeaders() },
-      body: JSON.stringify({ force_refresh: forceRefresh }),
+      body: JSON.stringify({
+        force_refresh: forceRefresh,
+        agents_to_run: agentsToRun,
+      }),
       credentials: "same-origin",
     }
   );

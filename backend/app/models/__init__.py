@@ -3,8 +3,19 @@ Pydantic models for the Krishi Agent API.
 These models define the request and response schemas for the FastAPI endpoints,
 ensuring proper validation and documentation in OpenAPI/Swagger.
 """
+import re
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+SUPPORTED_LANGUAGES = {"hi", "mr", "ta", "pa", "te", "kn", "gu", "bn", "en"}
+PHONE_REGEX = re.compile(r"^\+?[0-9]{10,15}$")
+
+
+def _sanitize_string(val: str, field_name: str) -> str:
+    cleaned = val.strip()
+    if "<" in cleaned or ">" in cleaned:
+        raise ValueError(f"{field_name} must not contain HTML or angle brackets.")
+    return cleaned
 
 
 class OnboardRequest(BaseModel):
@@ -13,8 +24,34 @@ class OnboardRequest(BaseModel):
     phone: str = Field(..., min_length=10, max_length=15, description="Mobile number (digits, optional +91 prefix).")
     district: str = Field(..., min_length=2, max_length=100, description="District name, e.g. Nashik.")
     language: str = Field(default="hi", description="Preferred language code, e.g. hi, mr, ta.")
-    password: str = Field(..., min_length=8, description="Password (minimum 8 characters).")
+    password: str = Field(..., min_length=8, max_length=128, description="Password (minimum 8 characters).")
     confirm_password: Optional[str] = Field(default=None, description="Password confirmation.")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        return _sanitize_string(v, "Name")
+
+    @field_validator("district")
+    @classmethod
+    def validate_district(cls, v: str) -> str:
+        return _sanitize_string(v, "District")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        v_stripped = v.strip()
+        if not PHONE_REGEX.match(v_stripped):
+            raise ValueError("Phone number must contain 10-15 digits with optional leading +.")
+        return v_stripped
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        lang = v.strip().lower()
+        if lang not in SUPPORTED_LANGUAGES:
+            raise ValueError(f"Unsupported language '{v}'. Supported: {sorted(SUPPORTED_LANGUAGES)}")
+        return lang
 
 
 class OnboardResponse(BaseModel):
@@ -29,14 +66,31 @@ class OnboardResponse(BaseModel):
 class FarmerLoginRequest(BaseModel):
     """Request payload for POST /api/v1/farmer/login."""
     phone: str = Field(..., min_length=10, max_length=15, description="Registered mobile number.")
-    password: str = Field(..., description="Account password.")
+    password: str = Field(..., max_length=128, description="Account password.")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        v_stripped = v.strip()
+        if not PHONE_REGEX.match(v_stripped):
+            raise ValueError("Invalid phone number format.")
+        return v_stripped
 
 
 class FarmerSetupPasswordRequest(BaseModel):
     """Request payload for POST /api/v1/farmer/setup-password."""
     phone: str = Field(..., min_length=10, max_length=15, description="Registered mobile number.")
-    password: str = Field(..., min_length=8, description="New password (minimum 8 characters).")
+    password: str = Field(..., min_length=8, max_length=128, description="New password (minimum 8 characters).")
     confirm_password: Optional[str] = Field(default=None, description="Password confirmation.")
+    old_password: Optional[str] = Field(default=None, max_length=128, description="Current password (required if password already set).")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        v_stripped = v.strip()
+        if not PHONE_REGEX.match(v_stripped):
+            raise ValueError("Invalid phone number format.")
+        return v_stripped
 
 
 class FarmerLoginResponse(BaseModel):

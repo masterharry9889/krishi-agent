@@ -132,14 +132,18 @@ class BaseAgent:
                         "content": "IMPORTANT: Your previous output did not strictly conform to the required JSON schema. Please ensure all required fields are present and valid."
                     })
 
-                response = self.client.chat.completions.create(
-                    model=model_to_use,
-                    messages=current_messages,
-                    tools=[tool_definition],
-                    tool_choice={"type": "function", "function": {"name": tool_name}},
-                    temperature=0.2,
-                    timeout=20.0 if image_base64 else 10.0,
-                )
+                call_kwargs = {
+                    "model": model_to_use,
+                    "messages": current_messages,
+                    "tools": [tool_definition],
+                    "tool_choice": {"type": "function", "function": {"name": tool_name}},
+                    "temperature": 0.2,
+                    "timeout": 25.0 if image_base64 else 10.0,
+                }
+                if image_base64:
+                    call_kwargs["max_tokens"] = 600
+
+                response = self.client.chat.completions.create(**call_kwargs)
 
                 tool_calls = response.choices[0].message.tool_calls
                 if not tool_calls:
@@ -230,7 +234,8 @@ class BaseAgent:
         json_instruction = (
             f"\n\n[OUTPUT FORMAT]\n"
             f"Respond ONLY with a valid JSON object matching this schema:\n{schema_json}\n"
-            f"Do not include any explanation, markdown formatting, or code fences — just the raw JSON object."
+            f"Do NOT output any chain-of-thought, reasoning, or <think> tags. "
+            f"Do not include any explanation, markdown formatting, or code fences — start directly with '{{' and end with '}}'."
         )
 
         full_system_prompt = system_prompt + lang_prompt + json_instruction
@@ -245,7 +250,10 @@ class BaseAgent:
 
         # Build multimodal user message (OpenAI-compatible format)
         user_message_content = [
-            {"type": "text", "text": user_content},
+            {
+                "type": "text",
+                "text": f"{user_content}\n\nCRITICAL: Output ONLY the raw JSON object directly starting with '{{'. Do NOT output <think> tags or internal thoughts."
+            },
             {"type": "image_url", "image_url": {"url": image_url}},
         ]
 
@@ -263,17 +271,21 @@ class BaseAgent:
                         "content": (
                             "IMPORTANT: Your previous output was not valid JSON. "
                             "Return ONLY the raw JSON object matching the schema. "
-                            "No markdown, no explanation."
+                            "No markdown, no explanation, no <think> tags."
                         )
                     })
 
-                response = self.client.chat.completions.create(
-                    model=self.vision_model,
-                    messages=current_messages,
-                    temperature=0.2,
-                    max_tokens=1024,
-                    timeout=30.0,
-                )
+                call_kwargs = {
+                    "model": self.vision_model,
+                    "messages": current_messages,
+                    "temperature": 0.1,
+                    "max_tokens": 750,
+                    "timeout": 30.0,
+                }
+                if "qwen" in self.vision_model.lower():
+                    call_kwargs["reasoning_effort"] = "none"
+
+                response = self.client.chat.completions.create(**call_kwargs)
 
                 content = response.choices[0].message.content or ""
                 parsed_json = self._extract_json(content)
@@ -305,6 +317,9 @@ class BaseAgent:
           - JSON embedded in surrounding prose
         """
         text = text.strip()
+        # Strip reasoning tags if present
+        text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+        text = re.sub(r'<thought>.*?</thought>', '', text, flags=re.DOTALL).strip()
 
         # 1. Try direct parse
         try:

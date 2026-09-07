@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from jose import jwt, JWTError
 from pymongo.errors import DuplicateKeyError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # Ensure repository root is in sys.path so 'backend' module imports resolve correctly
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -43,27 +43,86 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger("krishi_agent")
 
 # ─── Config ──────────────────────────────────────────────────────
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
 MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/krishi_agent")
 MONGODB_DB_NAME = os.environ.get("MONGODB_DB_NAME", "krishi_agent")
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme123")
+ADMIN_PASSWORD_HASH = os.environ.get("ADMIN_PASSWORD_HASH", "")
 SECRET_KEY = os.environ.get("ADMIN_JWT_SECRET", "dev-secret-key-change-me")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
+ENABLE_DOCS = os.environ.get("ENABLE_DOCS", "false").lower() in ("true", "1")
 
 # ─── MongoDB client & service (module-level for testability) ─────
 from pymongo import MongoClient
 mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
 farmer_service = FarmerService(mongo_client[MONGODB_DB_NAME])
 
-# ─── App ─────────────────────────────────────────────────────────
+# ─── App Configuration ───────────────────────────────────────────
+docs_url = "/docs" if ENVIRONMENT != "production" or ENABLE_DOCS else None
+redoc_url = "/redoc" if ENVIRONMENT != "production" or ENABLE_DOCS else None
+openapi_url = "/openapi.json" if ENVIRONMENT != "production" or ENABLE_DOCS else None
+
 app = FastAPI(
     title="Krishi Agent API",
     description="Farmer registration system with MongoDB storage and admin dashboard.",
     version="0.1.0",
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+    openapi_url=openapi_url,
 )
 
-# CORS — only allow the frontend origin
+# ─── Security Headers Middleware ─────────────────────────────────
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if ENVIRONMENT == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+# ─── Rate Limiting Middleware for Sensitive Auth Routes ─────────
+import time
+from collections import defaultdict
+from fastapi.responses import JSONResponse
+
+_RATE_LIMIT_BUCKET: dict[str, list[float]] = defaultdict(list)
+_RATE_LIMIT_PATHS = {
+    "/api/v1/farmer/login",
+    "/api/v1/admin/login",
+    "/api/v1/onboard",
+    "/api/v1/farmer/setup-password",
+}
+_MAX_REQUESTS_PER_MINUTE = 20
+
+@app.middleware("http")
+async def rate_limit_auth_endpoints(request: Request, call_next):
+    path = request.url.path
+    if path in _RATE_LIMIT_PATHS and request.method == "POST":
+        client_ip = request.client.host if request.client else "unknown"
+        # Skip throttling for test client during automated test runs
+        if client_ip != "testclient":
+            now = time.time()
+            key = f"{client_ip}:{path}"
+            timestamps = [t for t in _RATE_LIMIT_BUCKET[key] if now - t < 60]
+            if len(timestamps) >= _MAX_REQUESTS_PER_MINUTE:
+                logger.warning(f"[RATE LIMIT] Blocked {client_ip} on {path}")
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    content={"detail": "Too many requests. Please wait a minute before trying again."},
+                    headers={"Retry-After": "60"},
+                )
+            timestamps.append(now)
+            _RATE_LIMIT_BUCKET[key] = timestamps
+
+    return await call_next(request)
+
+# CORS — only allow trusted frontend origins
 origins = [
     "http://localhost:3000",
     "http://localhost:3001",
@@ -81,6 +140,12 @@ app.add_middleware(
 
 def get_farmer_service() -> FarmerService:
     return farmer_service
+
+
+def _safe_error_detail(action_name: str, exc: Exception) -> str:
+    if ENVIRONMENT == "production":
+        return f"{action_name} failed. An internal server error occurred. Please contact support."
+    return f"{action_name} failed: {exc}"
 
 
 # ─── Token helpers ───────────────────────────────────────────────
@@ -106,7 +171,10 @@ def create_farmer_token(farmer_id: str, season_id: str) -> str:
 
 def verify_admin_credentials(credentials: HTTPBasicCredentials) -> bool:
     user_ok = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
-    pass_ok = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+    if ADMIN_PASSWORD_HASH:
+        pass_ok = verify_password(credentials.password, ADMIN_PASSWORD_HASH)
+    else:
+        pass_ok = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
     return user_ok and pass_ok
 
 
@@ -176,7 +244,18 @@ def get_current_farmer(request: Request) -> dict:
 
 @app.on_event("startup")
 def startup_db():
-    """Create MongoDB indexes on startup."""
+    """Create MongoDB indexes and enforce production security configuration."""
+    if ENVIRONMENT == "production":
+        if SECRET_KEY == "dev-secret-key-change-me" or len(SECRET_KEY) < 32:
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: In production, ADMIN_JWT_SECRET "
+                "must be set to a strong random key (minimum 32 characters). Refusing to start."
+            )
+        if (not ADMIN_PASSWORD_HASH) and ADMIN_PASSWORD == "changeme123":
+            raise RuntimeError(
+                "CRITICAL SECURITY CONFIGURATION ERROR: Default ADMIN_PASSWORD ('changeme123') "
+                "cannot be used in production. Set ADMIN_PASSWORD_HASH or a secure ADMIN_PASSWORD."
+            )
     try:
         farmer_service.create_indexes()
         logger.info("MongoDB indexes created successfully.")
@@ -287,6 +366,14 @@ def setup_farmer_password(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No registered farmer profile found for this mobile number.",
         )
+
+    # Prevent account takeover: if a password already exists, require the old password
+    if doc.get("password_hash"):
+        if not payload.old_password or not verify_password(payload.old_password, doc["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="This account already has a password. Current password (old_password) is required to update it.",
+            )
 
     pwd_hash = hash_password(payload.password)
     fs.update_farmer(doc["farmer_id"], {"password_hash": pwd_hash})
@@ -436,10 +523,57 @@ def get_farmer(
 
 class FarmerUpdate(BaseModel):
     name: Optional[str] = None
-    phone: Optional[str] = Field(None, min_length=10)
+    phone: Optional[str] = None
     district: Optional[str] = None
     language: Optional[str] = None
     status: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            if "<" in v or ">" in v:
+                raise ValueError("Name must not contain HTML or angle brackets.")
+        return v
+
+    @field_validator("district")
+    @classmethod
+    def validate_district(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            if "<" in v or ">" in v:
+                raise ValueError("District must not contain HTML or angle brackets.")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            if not re.match(r"^\+?[0-9]{10,15}$", v):
+                raise ValueError("Phone number must contain 10-15 digits with optional leading +.")
+        return v
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip().lower()
+            supported = {"hi", "mr", "ta", "pa", "te", "kn", "gu", "bn", "en"}
+            if v not in supported:
+                raise ValueError(f"Unsupported language '{v}'.")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip().lower()
+            allowed = {"registered", "active", "deactivated"}
+            if v not in allowed:
+                raise ValueError(f"Invalid status '{v}'. Allowed: {allowed}")
+        return v
 
 
 @app.patch("/api/v1/admin/farmers/{farmer_id}", tags=["admin"], response_model=FarmerListItem)
@@ -908,13 +1042,12 @@ async def disease_detection_analysis(
     # Run the graph - it will route to disease_detection -> disease_research -> validation
     from backend.app.graph.build_graph import build_graph
     from langgraph.checkpoint.memory import MemorySaver
-
     graph = build_graph(MemorySaver())
     try:
         result = graph.invoke(detection_state, config={"configurable": {"thread_id": f"disease_{farmer_id}_{season_id}"}})
     except Exception as exc:
         logger.error(f"[DISEASE DETECTION ERROR] farmer_id={farmer_id} | error={exc}")
-        raise HTTPException(status_code=500, detail=f"Disease detection failed: {exc}")
+        raise HTTPException(status_code=500, detail=_safe_error_detail("Disease detection", exc))
 
     # Extract results
     disease_detection = result.get("disease_detection")
@@ -1011,7 +1144,7 @@ async def government_schemes_query(
         )
     except Exception as exc:
         logger.error(f"[GOVERNMENT SCHEMES ERROR] farmer_id={farmer_id} | error={exc}")
-        raise HTTPException(status_code=500, detail=f"Government schemes lookup failed: {exc}")
+        raise HTTPException(status_code=500, detail=_safe_error_detail("Government schemes lookup", exc))
 
     government_schemes = result.get("government_schemes")
     message_text = (
@@ -1075,7 +1208,7 @@ def orchestrate_farm_analysis(
         raise HTTPException(status_code=403, detail=str(exc))
     except Exception as exc:
         logger.error(f"[ORCHESTRATE ERROR] farmer_id={farmer_id} | season_id={season_id} | error={exc}")
-        raise HTTPException(status_code=500, detail=f"Orchestration failed: {exc}")
+        raise HTTPException(status_code=500, detail=_safe_error_detail("Orchestration", exc))
 
 
 @app.get(

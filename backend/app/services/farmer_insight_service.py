@@ -139,7 +139,11 @@ class FarmerInsightService:
         # Weather Priorities & Weather Actions
         weather_actions: List[Dict[str, str]] = []
         forecast = weather.get("forecast_7d", []) if isinstance(weather, dict) else []
-        total_rain = weather.get("total_7d_rain_mm") or sum(d.get("rain_mm", 0) for d in forecast)
+        if not isinstance(forecast, list):
+            forecast = []
+        total_rain = weather.get("total_7d_rain_mm") or sum(
+            (d.get("rain_mm", 0) if isinstance(d, dict) else 0) for d in forecast
+        )
         avg_temp = weather.get("average_temp_c") or 30.0
 
         if total_rain >= 50:
@@ -308,7 +312,13 @@ class FarmerInsightService:
             "cost_per_acre_inr": budget.get("cost_per_acre") or int(est_cost / max(1.0, profile.get("land_size", 1.0))),
             "expected_net_margin_inr": est_margin,
             "roi_pct": budget.get("roi_pct") or 40.0,
-            "kcc_credit_available_inr": credit.get("credit_offers", [{}])[0].get("max_amount") if isinstance(credit.get("credit_offers"), list) and credit.get("credit_offers") else min(300000, int(profile.get("land_size", 1.0) * 50000)),
+            "kcc_credit_available_inr": (
+                credit.get("credit_offers", [{}])[0].get("max_amount")
+                if isinstance(credit.get("credit_offers"), list)
+                and credit.get("credit_offers")
+                and isinstance(credit["credit_offers"][0], dict)
+                else min(300000, int(profile.get("land_size", 1.0) * 50000))
+            ),
             "pmfby_eligible": insurance.get("eligibility", {}).get("pmfby_eligible", True),
             "trust_level": "Calculated Estimate" if is_est_fin else "Measured Budget Model",
             "is_estimated": is_est_fin,

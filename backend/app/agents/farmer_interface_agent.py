@@ -44,13 +44,17 @@ class FarmerInterfaceAgent(BaseAgent):
             }
 
         if self.api_key:
-            user_content = f"Standardize and validate the following farmer onboarding data:\n{raw_profile}"
-            validated_profile = self.call_llm(
-                system_prompt=self.SYSTEM_PROMPT,
-                user_content=user_content,
-                response_schema=FarmerProfile
-            )
-            return {"profile": validated_profile.model_dump()}
+            try:
+                user_content = f"Standardize and validate the following farmer onboarding data:\n{raw_profile}"
+                validated_profile = self.call_llm(
+                    system_prompt=self.SYSTEM_PROMPT,
+                    user_content=user_content,
+                    response_schema=FarmerProfile
+                )
+                return {"profile": validated_profile.model_dump()}
+            except Exception as e:
+                logger.warning(f"[FARMER_INTERFACE] LLM validation failed: {e}. Using raw profile.")
+                return {"profile": raw_profile}
 
         # Fallback if no API key provided
         return {"profile": raw_profile}

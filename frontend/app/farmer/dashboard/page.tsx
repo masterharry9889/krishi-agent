@@ -9,6 +9,7 @@ import {
   getFarmerContext,
   getFarmerInsight,
   orchestrateFarmAnalysis,
+  DASHBOARD_REQUIRED_AGENTS,
   submitFarmerFeedback,
   FarmerContextResponse,
   FarmerInsight,
@@ -142,11 +143,11 @@ export default function FarmerDashboardPage() {
 
     try {
       const steps = [
-        "Checking weather forecasts...",
-        "Checking market prices in APMC mandis...",
-        "Finding suitable crop recommendations...",
-        "Calculating irrigation & financial estimates...",
-        "Finalizing your farm decision summary...",
+        "Analyzing soil fertility & nutrient status...",
+        "Checking weather & precipitation outlook...",
+        "Scanning APMC mandi prices & trends...",
+        "Computing optimal crop recommendations...",
+        "Formulating irrigation & input budget...",
       ];
 
       let stepIdx = 0;
@@ -157,7 +158,12 @@ export default function FarmerDashboardPage() {
         }
       }, 1000);
 
-      const res = await orchestrateFarmAnalysis(context.farmer_id, context.season_id, true);
+      const res = await orchestrateFarmAnalysis(
+        context.farmer_id,
+        context.season_id,
+        true,
+        DASHBOARD_REQUIRED_AGENTS
+      );
       clearInterval(interval);
 
       setInsight(res.insight);

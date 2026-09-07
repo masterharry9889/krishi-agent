@@ -280,6 +280,27 @@ class DiseaseResearchAgent(BaseAgent):
             ],
             "expert_help": "Contact KVK if neck blast appears or >10% leaf area affected"
         },
+        "False Smut": {
+            "crop": "Rice",
+            "severity": "Moderate-High - transforms individual grains into greenish/yellowish/black powdery spore balls; reduces grain yield and grain quality",
+            "organic_first": [
+                "Hand-pick and carefully destroy infected smut balls inside plastic bags to prevent spore dispersal",
+                "Spray Trichoderma viride or Pseudomonas fluorescens @ 10 g/L at booting stage",
+                "Avoid excessive nitrogenous fertilizer application at panicle emergence"
+            ],
+            "chemical_if_needed": [
+                "Propiconazole 25% EC @ 1.0 ml/L at 50% panicle emergence",
+                "Trifloxystrobin 25% + Tebuconazole 50% WG @ 0.4 g/L at boot leaf stage",
+                "Copper oxychloride 50% WP @ 2.5 g/L"
+            ],
+            "prevention": [
+                "Seed treatment with Carbendazim 50% WP @ 2 g/kg of seed",
+                "Adopt wider spacing and proper drainage during flowering",
+                "Use clean certified disease-free seeds",
+                "Apply recommended Potash (MOP) to enhance panicle resistance"
+            ],
+            "expert_help": "Contact local KVK or Agricultural Extension Officer if false smut balls appear on more than 5% of panicles"
+        },
         "Bacterial Leaf Blight": {
             "crop": "Rice",
             "severity": "High - vascular disease, causes wilting/yield loss",
@@ -474,12 +495,13 @@ class DiseaseResearchAgent(BaseAgent):
         self, crop: str, district: str, language: str, now: str
     ) -> dict:
         """Response when plant is healthy."""
-        msg = {
+        msg_dict = {
             "en": f"Good news! Your {crop} plant appears healthy with no visible disease symptoms.",
             "hi": f"अच्छी खबर! आपका {crop} पौधा स्वस्थ दिखता है, कोई रोग के लक्षण नहीं हैं।",
             "mr": f"चांगली बातमी! तुमचे {crop} रोप स्वस्थ दिसते, कोणतेही रोगाचे लक्षण नाहीत।",
             "ta": f"நல்ல செய்தி! உங்கள் {crop} செடி ஆரோக்கியமாக இருக்கின்றது, நோய் அறிகுறிகள் இல்லை।",
-        }.get(language, msg["en"])
+        }
+        msg = msg_dict.get(language, msg_dict["en"])
 
         return {
             "agent": "disease_research",
@@ -517,12 +539,13 @@ class DiseaseResearchAgent(BaseAgent):
         self, crop: str, district: str, language: str, now: str
     ) -> dict:
         """Response when image was unclear."""
-        msg = {
+        msg_dict = {
             "en": "The uploaded photo was unclear for diagnosis. Please retake with better lighting.",
             "hi": "अपलोड की गई तस्वीर निदान के लिए स्पष्ट नहीं है। कृपया बेहतर रोशनी के साथ दोबारा खींचें।",
             "mr": "अपलोड केलेले फोटो निदानासाठी स्पष्ट नाही. कृपया चांगली दिव्याने पुन्हा घ्या.",
-            "ta": "அப்லோட் செய்யப்பட்ட புகைப்படம் நோய் கண்டறிதலுக்கு தெளிவு இல்லை. краindre விளக்கத்தில் மீண்டும் எடுக்கவும்.",
-        }.get(language, msg["en"])
+            "ta": "அப்லோட் செய்யப்பட்ட புகைப்படம் நோய் கண்டறிதலுக்கு தெளிவு இல்லை. தயவுசெய்து நல்ல வெளிச்சத்தில் மீண்டும் எடுக்கவும்.",
+        }
+        msg = msg_dict.get(language, msg_dict["en"])
 
         return {
             "agent": "disease_research",

@@ -123,6 +123,7 @@ class FarmerContext:
                 "market_intelligence": "market_intel",
                 "crop_recommendation": "crop_shortlist",
                 "resource_irrigation": "input_plan",
+                "irrigation": "input_plan",
                 "budget_estimator": "budget_estimate",
                 "input_verification": "verified_dealers",
                 "scheme_insurance": "insurance_status",

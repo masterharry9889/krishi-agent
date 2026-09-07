@@ -37,6 +37,22 @@ DEPENDENT_PIPELINE = [
     "feedback",
 ]
 
+# Core diagnostic & planning agents whose outputs are displayed on the farmer dashboard:
+# 1. soil -> soil priorities & crop suitability factors
+# 2. weather -> weather forecast, rain/dry spell alerts & crop suitability factors
+# 3. market_intelligence -> mandi modal prices, market trends & selling recommendation
+# 4. crop_recommendation -> recommended crop decision card & variety guidance
+# 5. irrigation -> water schedule & input requirements (prerequisite for budget)
+# 6. budget_estimator -> input costs, expected net margin & financial snapshot
+DASHBOARD_AGENTS = [
+    "soil",
+    "weather",
+    "market_intelligence",
+    "crop_recommendation",
+    "irrigation",
+    "budget_estimator",
+]
+
 
 class AgentOrchestrator:
     """Orchestrates multi-agent execution efficiently with concurrency and dependency management."""
@@ -54,6 +70,7 @@ class AgentOrchestrator:
         """
         Loads farmer context, evaluates missing/stale agents, executes independent agents concurrently,
         executes downstream dependent agents in topological order, and updates unified insights.
+        Only runs agents whose information is required for the dashboard by default.
         """
         # Validate farmer_id and season_id isolation
         farmer = self.service.get_by_farmer_id(farmer_id)
@@ -61,6 +78,14 @@ class AgentOrchestrator:
             raise LookupError(f"Farmer not found for farmer_id={farmer_id}")
         if farmer.get("season_id") != season_id:
             raise PermissionError(f"Season ID '{season_id}' does not belong to farmer '{farmer_id}'")
+
+        # Determine targeted agents: default to dashboard-only agents unless "all" or specific list requested
+        if not agents_to_run:
+            active_agents = set(DASHBOARD_AGENTS)
+        elif "all" in agents_to_run:
+            active_agents = None  # None indicates all pipeline agents can run
+        else:
+            active_agents = set(agents_to_run)
 
         context = FarmerContext(farmer_id=farmer_id, season_id=season_id, service=self.service)
         state = context.load()
@@ -70,7 +95,7 @@ class AgentOrchestrator:
         # ── 1. Determine which independent agents need execution ──────
         independent_tasks = []
         for agent_key in INDEPENDENT_AGENTS:
-            if agents_to_run and agent_key not in agents_to_run:
+            if active_agents is not None and agent_key not in active_agents:
                 continue
             entry = existing_by_agent.get(agent_key)
             if force_refresh or not entry or not is_agent_fresh(entry):
@@ -78,7 +103,7 @@ class AgentOrchestrator:
 
         # ── 2. Run independent agents concurrently using ThreadPool ───
         if independent_tasks:
-            logger.info(f"[ORCHESTRATOR] Running independent agents concurrently: {independent_tasks}")
+            logger.info(f"[ORCHESTRATOR] Running independent dashboard agents concurrently: {independent_tasks}")
             with ThreadPoolExecutor(max_workers=min(4, len(independent_tasks))) as executor:
                 futures = {
                     executor.submit(self._run_single_agent, context, key): key
@@ -99,7 +124,7 @@ class AgentOrchestrator:
 
         # ── 3. Run dependent agents sequentially as prerequisites complete ──
         for agent_key in DEPENDENT_PIPELINE:
-            if agents_to_run and agent_key not in agents_to_run:
+            if active_agents is not None and agent_key not in active_agents:
                 continue
 
             # Check if prerequisites are satisfied
@@ -128,10 +153,23 @@ class AgentOrchestrator:
 
         # ── 4. Generate & persist unified FarmerInsight ───────────────
         final_state = context.load()
-        insight = FarmerInsightService.generate_insight(final_state)
+        try:
+            insight = FarmerInsightService.generate_insight(final_state)
+        except Exception as exc:
+            logger.error(f"[ORCHESTRATOR] FarmerInsightService.generate_insight failed: {exc}")
+            insight = {
+                "summary": "Insight generation encountered an error. Partial data may be available.",
+                "farmer_id": farmer_id,
+                "season_id": season_id,
+                "error": str(exc),
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            }
 
         # Persist insight to MongoDB
-        self.service.update_farmer(farmer_id, {"farmer_insight": insight})
+        try:
+            self.service.update_farmer(farmer_id, {"farmer_insight": insight})
+        except Exception as exc:
+            logger.error(f"[ORCHESTRATOR] Failed to persist farmer_insight: {exc}")
 
         return {
             "farmer_id": farmer_id,

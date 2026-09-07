@@ -6,6 +6,7 @@ import {
   getFarmerContext,
   runAgent,
   orchestrateFarmAnalysis,
+  DASHBOARD_REQUIRED_AGENTS,
   getFarmerInsight,
   submitFarmerFeedback,
   ApiError,
@@ -157,9 +158,14 @@ export default function FarmerDashboardPage({ params }: { params: Promise<PagePa
 
   const handleAnalyzeMyFarm = async () => {
     setOrchestrating(true);
-    setOrchestratorStep("Analyzing Soil, Weather & Mandi Prices...");
+    setOrchestratorStep("Analyzing Soil, Weather, Market & Crop Plan...");
     try {
-      const res = await orchestrateFarmAnalysis(farmerId, seasonId, true);
+      const res = await orchestrateFarmAnalysis(
+        farmerId,
+        seasonId,
+        true,
+        DASHBOARD_REQUIRED_AGENTS
+      );
       setContext(res.context);
       setInsight(res.insight);
 

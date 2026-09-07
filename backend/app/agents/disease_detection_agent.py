@@ -10,7 +10,7 @@ import base64
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .base_agent import BaseAgent
 
@@ -27,6 +27,28 @@ class DiseaseDetectionResult(BaseModel):
     symptoms_observed: List[str] = Field(default_factory=list, description="Visible symptoms described")
     is_healthy: bool = Field(description="True if no disease detected")
     needs_human_review: bool = Field(description="True if confidence below threshold or unclear image")
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def parse_confidence(cls, v):
+        if isinstance(v, (int, float)):
+            return max(0.0, min(1.0, float(v)))
+        if isinstance(v, str):
+            v_clean = v.strip().lower().rstrip("%")
+            if v_clean in ("high", "very high"):
+                return 0.92
+            elif v_clean in ("medium", "moderate"):
+                return 0.75
+            elif v_clean in ("low", "very low"):
+                return 0.40
+            try:
+                val = float(v_clean)
+                if val > 1.0:
+                    val = val / 100.0
+                return max(0.0, min(1.0, val))
+            except ValueError:
+                return 0.75
+        return 0.50
 
 
 # ─── Agent ──────────────────────────────────────────────────────────────
@@ -66,7 +88,7 @@ class DiseaseDetectionAgent(BaseAgent):
             "Powdery Mildew", "Loose Smut", "Karnal Bunt"
         ],
         "Rice": [
-            "Blast", "Bacterial Leaf Blight", "Brown Spot",
+            "Blast", "False Smut", "Bacterial Leaf Blight", "Brown Spot",
             "Sheath Blight", "Tungro Virus", "Stem Borer", "Leaf Folder"
         ],
         "Pearl Millet": [
@@ -208,13 +230,14 @@ class DiseaseDetectionAgent(BaseAgent):
             # call_llm returns a validated DiseaseDetectionResult instance (not a
             # dict) — work with it as a model, then re-apply the human-review
             # threshold and rebuild before returning.
-            analysis: DiseaseDetectionResult = self.call_llm(
+            # Use call_vision_llm which formats multimodal messages and parses structured JSON output
+            analysis: DiseaseDetectionResult = self.call_vision_llm(
                 system_prompt=self.SYSTEM_PROMPT,
                 user_content=user_content,
+                image_base64=image_base64,
                 response_schema=DiseaseDetectionResult,
                 language=language,
                 max_retries=2,
-                image_base64=image_base64
             )
 
             needs_review = analysis.needs_human_review or analysis.confidence < self.CONFIDENCE_THRESHOLD
