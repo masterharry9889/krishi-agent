@@ -120,8 +120,7 @@ def build_graph(checkpointer: PostgresSaver):
     )
     graph.add_edge("market_linkage", "feedback")
     graph.add_edge("feedback", "validation")
-    # NOTE: validation→END edge already defined above (disease_research flow).
-    # Both flows (disease and feedback) converge on the same validation node.
+    graph.add_edge("validation", END)
 
     # The await_price_trigger node is a placeholder; the price_watcher will trigger a new graph run
     # that resumes at this node (or we can have it trigger a rerun from storage_sell_timing again).

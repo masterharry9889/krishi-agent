@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 
 from pydantic import ValidationError
 
+from .information_validation_agent import InformationValidationAgent, InformationValidationReport
 from .schemas import (
     AgentOutputUnion,
     ValidationResult,
@@ -512,18 +513,25 @@ def validate_user_input(message: str, file_info: Optional[Dict[str, Any]] = None
 # ─── Validation Agent Class (for registry compatibility) ───────────────
 
 class ValidationAgent:
-    """Validation agent that can be registered in the agent registry."""
+    """Validation agent that can be registered in the agent registry.
+    Combines guardrail checks with deep agricultural InformationValidationAgent checks.
+    """
 
     def __init__(self):
         self.name = "validation"
         self.key = "validation"
+        self.info_validator = InformationValidationAgent()
 
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate the complete pipeline output before returning to user.
         This runs as the FINAL node in the graph.
         """
-        # Collect all agent outputs from state for validation
+        profile = state.get("profile", {})
+        # 1. Run domain Information Validation across all collected data
+        info_report = self.info_validator.validate_all_collected_information(state, profile)
+
+        # 2. Collect all agent outputs from state for schema & guardrail validation
         agent_outputs = {}
         for key in state.keys():
             if key.endswith("_agent") or key in SCHEMA_MAP:
@@ -535,11 +543,7 @@ class ValidationAgent:
         all_passed = True
         failure_reasons = []
 
-        # Which agent's output is the last user-facing thing said, per branch —
-        # "feedback" for the main season-planning pipeline, "disease_research"
-        # for the image-upload branch, "government_schemes" for the scheme/
-        # policy-question branch. Only that one needs the language check;
-        # everything upstream of it is intermediate state.
+        # Which agent's output is the last user-facing thing said, per branch
         final_output_keys = {"feedback", "disease_research", "government_schemes"}
 
         for agent_key, output in agent_outputs.items():
@@ -555,23 +559,33 @@ class ValidationAgent:
             return {
                 "validation": {
                     "agent": "validation",
-                    "status": "success",
+                    "status": "warning",
                     "generated_at": datetime.now(timezone.utc).isoformat(),
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "source": "Krishi Agent Validation Layer",
                     "confidence": 1.0,
                     "is_estimated": False,
                     "data_status": "Validation Completed with Fallback",
+                    "report": info_report.to_dict(),
                     "recommendations": [
                         "Some automated recommendations could not be fully validated.",
                         "Please consult your local agriculture officer for specific guidance.",
                         "The general farming principles remain: test soil, follow weather, use certified inputs."
                     ],
-                    "warnings": ["Validation layer activated fallback responses for safety."],
+                    "warnings": ["Validation layer activated fallback responses for safety."] + info_report.warnings,
                 }
             }
 
-        return {"validation": {"status": "passed", "validated_agents": list(agent_outputs.keys())}}
+        return {
+            "validation": {
+                "status": info_report.status,
+                "validated_agents": list(agent_outputs.keys()),
+                "report": info_report.to_dict(),
+                "checks_passed": info_report.checks_passed,
+                "warnings": info_report.warnings,
+                "safety_notices": info_report.safety_notices,
+            }
+        }
 
 
 # ─── Graph Node Function ───────────────────────────────────────────────

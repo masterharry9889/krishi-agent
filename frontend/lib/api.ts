@@ -677,3 +677,76 @@ export async function getAgentRegistry(): Promise<Record<string, AgentRegistryEn
 
   return res.json() as Promise<Record<string, AgentRegistryEntry>>;
 }
+
+// ─── Farmer Chat API ──────────────────────────────────────────
+
+import type {
+  FarmingPlanData,
+  DiseaseDiagnosisData,
+  SchemeData,
+  MarketData,
+  WeatherData,
+  SoilData,
+  ValidationInfo,
+  MessageType,
+} from "@/components/chat/types";
+
+export interface FarmerChatRequestPayload {
+  message: string;
+  season_id?: string;
+  image_base64?: string;
+  image_name?: string;
+  crop_type?: string;
+  attachments?: Array<{
+    name: string;
+    type: string;
+    url: string;
+    data?: string;
+  }>;
+}
+
+export interface FarmerChatResponsePayload {
+  status: string;
+  role: "assistant";
+  message: string;
+  type: MessageType;
+  planData?: FarmingPlanData;
+  diagnosisData?: DiseaseDiagnosisData;
+  schemeData?: SchemeData;
+  marketData?: MarketData;
+  weatherData?: WeatherData;
+  soilData?: SoilData;
+  validation?: ValidationInfo;
+  timestamp: string;
+}
+
+export async function sendFarmerChatMessage(
+  farmerId: string,
+  payload: FarmerChatRequestPayload,
+  seasonId?: string
+): Promise<FarmerChatResponsePayload> {
+  const url = seasonId
+    ? `${BACKEND_URL}/api/v1/farmers/${farmerId}/seasons/${seasonId}/chat`
+    : `${BACKEND_URL}/api/v1/farmers/${farmerId}/chat`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...farmerAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+    credentials: "same-origin",
+  });
+
+  if (!res.ok) {
+    let message = `Chat request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.detail) message = String(data.detail);
+    } catch { /* keep default */ }
+    throw new ApiError(message, res.status);
+  }
+
+  return res.json() as Promise<FarmerChatResponsePayload>;
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ── 1. Protect Admin routes ──────────────────────────────────────
@@ -33,6 +33,7 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/farmer/dashboard/:path*",
+    "/farmer/:farmer_id/chat/:path*",
     "/farmer/:farmer_id/season/:season_id/:path*",
   ],
 };

@@ -229,6 +229,7 @@ AGENT_REGISTRY: List[AgentEntry] = [
         implemented=True,
         dependencies=["feedback"],
         icon_category="validation",
+        aliases=["information_validation"],
     ),
 ]
 

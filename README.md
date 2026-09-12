@@ -124,7 +124,7 @@ krishi-agent/
 │   │   └── page.tsx                 # Public farmer registration portal
 │   ├── components/                  # Reusable UI cards (Weather, Soil, Market, Diagnosis)
 │   ├── lib/                         # API client with JWT interceptors
-│   ├── middleware.ts                # Next.js security headers & route protection
+│   ├── proxy.ts                     # Next.js route protection & security
 │   └── package.json
 └── README.md
 ```

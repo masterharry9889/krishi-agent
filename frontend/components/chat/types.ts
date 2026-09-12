@@ -1,6 +1,14 @@
 export type MessageRole = "user" | "assistant" | "system";
 
-export type MessageType = "text" | "plan" | "diagnosis" | "attachment_analyzing";
+export type MessageType =
+  | "text"
+  | "plan"
+  | "diagnosis"
+  | "scheme"
+  | "market"
+  | "weather"
+  | "soil"
+  | "attachment_analyzing";
 
 export interface Attachment {
   id: string;
@@ -36,10 +44,101 @@ export interface IrrigationScheduleItem {
 }
 
 export interface SchemeEligibilityItem {
-  schemeName: string;
+  schemeName?: string;
+  name?: string;
+  category?: string;
   benefit: string;
   eligibility: string;
+  howToApply?: string;
   linkText?: string;
+  link?: string;
+}
+
+export interface SchemeData {
+  title: string;
+  district?: string;
+  landSizeAcres?: number;
+  schemes: SchemeEligibilityItem[];
+  summary?: string;
+  officialPortalNote?: string;
+}
+
+export interface CommodityMarketItem {
+  crop: string;
+  variety?: string;
+  modalPriceInr: number;
+  minPriceInr: number;
+  maxPriceInr: number;
+  unit: string;
+  trend: "increasing" | "decreasing" | "stable" | "volatile" | string;
+  trendPct?: string;
+  recommendation: string;
+}
+
+export interface MarketData {
+  district: string;
+  mandiName: string;
+  updatedDate: string;
+  commodities: CommodityMarketItem[];
+  sellingStrategy?: string;
+  source: string;
+}
+
+export interface WeatherForecastItem {
+  day: string;
+  condition: string;
+  tempMax: number;
+  tempMin: number;
+  rainMm: number;
+  rainProb: number;
+}
+
+export interface WeatherAlertItem {
+  type: string;
+  severity: "low" | "medium" | "high" | "critical" | string;
+  message: string;
+}
+
+export interface WeatherData {
+  location: string;
+  summary: string;
+  currentTemp: number;
+  humidityPct: number;
+  windKmph: number;
+  forecast: WeatherForecastItem[];
+  alerts?: WeatherAlertItem[];
+  source: string;
+}
+
+export interface SoilMicronutrientItem {
+  nutrient: string;
+  status: string;
+  recommendation: string;
+}
+
+export interface SoilData {
+  location: string;
+  soilType: string;
+  ph: number;
+  phStatus: string;
+  organicCarbon: string;
+  nitrogen: string;
+  phosphorus: string;
+  potassium: string;
+  micronutrients: SoilMicronutrientItem[];
+  correctiveActions: string[];
+  source: string;
+}
+
+export interface ValidationInfo {
+  is_valid: boolean;
+  validation_score: number;
+  status: "verified" | "warning" | "corrected" | string;
+  checks_passed: string[];
+  warnings: string[];
+  safety_notices: string[];
+  verified_sources?: string[];
+  timestamp?: string;
 }
 
 export interface TimelineItem {
@@ -56,6 +155,7 @@ export interface FarmingPlanData {
   irrigation: IrrigationScheduleItem;
   schemes: SchemeEligibilityItem[];
   timeline: TimelineItem[];
+  validation?: ValidationInfo;
 }
 
 export interface DiseaseTreatment {
@@ -73,6 +173,7 @@ export interface DiseaseDiagnosisData {
   treatment: DiseaseTreatment;
   citationSource?: string;
   imageUrl?: string;
+  validation?: ValidationInfo;
 }
 
 export interface ChatMessage {
@@ -84,6 +185,11 @@ export interface ChatMessage {
   attachments?: Attachment[];
   planData?: FarmingPlanData;
   diagnosisData?: DiseaseDiagnosisData;
+  schemeData?: SchemeData;
+  marketData?: MarketData;
+  weatherData?: WeatherData;
+  soilData?: SoilData;
+  validation?: ValidationInfo;
   status?: "sending" | "sent" | "error" | "streaming";
   errorMessage?: string;
 }

@@ -4,6 +4,11 @@ import React, { useState } from "react";
 import { ChatMessage } from "./types";
 import { FarmingPlanCard } from "./FarmingPlanCard";
 import { DiagnosisCard } from "./DiagnosisCard";
+import { SchemeCard } from "./SchemeCard";
+import { MarketCard } from "./MarketCard";
+import { WeatherCard } from "./WeatherCard";
+import { SoilCard } from "./SoilCard";
+import { ValidationBadge } from "./ValidationBadge";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -113,6 +118,31 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onRetry }
         {/* Structured Disease Diagnosis Card */}
         {message.type === "diagnosis" && message.diagnosisData && (
           <DiagnosisCard diagnosis={message.diagnosisData} />
+        )}
+
+        {/* Structured Government Scheme Card */}
+        {message.type === "scheme" && message.schemeData && (
+          <SchemeCard schemeData={message.schemeData} />
+        )}
+
+        {/* Structured Market Mandi Card */}
+        {message.type === "market" && message.marketData && (
+          <MarketCard marketData={message.marketData} />
+        )}
+
+        {/* Structured Weather Forecast Card */}
+        {message.type === "weather" && message.weatherData && (
+          <WeatherCard weatherData={message.weatherData} />
+        )}
+
+        {/* Structured Soil Fertility Card */}
+        {message.type === "soil" && message.soilData && (
+          <SoilCard soilData={message.soilData} />
+        )}
+
+        {/* Information Validation Badge for Assistant Responses */}
+        {!isUser && message.validation && (
+          <ValidationBadge validation={message.validation} />
         )}
 
         {/* Error Retry Affordance */}

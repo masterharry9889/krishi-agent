@@ -8,8 +8,20 @@ import {
   getFarmerContext,
   FarmerContextResponse,
   formatLanguageLabel,
+  sendFarmerChatMessage,
+  FarmerChatRequestPayload,
 } from "@/lib/api";
-import { ChatMessage, Attachment, FarmingPlanData, DiseaseDiagnosisData } from "@/components/chat/types";
+import {
+  ChatMessage,
+  Attachment,
+  FarmingPlanData,
+  DiseaseDiagnosisData,
+  SchemeData,
+  MarketData,
+  WeatherData,
+  SoilData,
+  ValidationInfo,
+} from "@/components/chat/types";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 
@@ -47,175 +59,91 @@ export default function FarmerChatPage({
     loadProfile();
   }, [farmerId, router]);
 
-  // Generate simulated or SSE streaming AI response
+  // Dispatch real user input to backend AI agents & validation layer
   const processAgentResponse = useCallback(
     async (userMsg: ChatMessage, attachments: Attachment[]) => {
       setIsThinking(true);
       setNetworkError(null);
 
-      const hasImage = attachments.some((a) => a.type === "image");
-      const userText = userMsg.content.toLowerCase();
+      try {
+        // 1. Process image attachments to base64 if present
+        const imageAttachment = attachments.find((a) => a.type === "image");
+        let imageBase64: string | undefined = undefined;
 
-      // Check query intent
-      const isPlanQuery =
-        userText.includes("plan") ||
-        userText.includes("season") ||
-        userText.includes("acre") ||
-        userText.includes("recommend");
+        if (imageAttachment?.file) {
+          imageBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string) || "");
+            reader.onerror = () => resolve("");
+            reader.readAsDataURL(imageAttachment.file as File);
+          });
+        } else if (imageAttachment?.url?.startsWith("data:image")) {
+          imageBase64 = imageAttachment.url;
+        }
 
-      const isDiagnosisQuery =
-        hasImage ||
-        userText.includes("photo") ||
-        userText.includes("leaf") ||
-        userText.includes("spot") ||
-        userText.includes("disease");
-
-      // Simulated latency for AI Agent orchestration pipeline
-      await new Promise((resolve) => setTimeout(resolve, 1800));
-
-      const nowTime = new Date().toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      if (isDiagnosisQuery) {
-        // Structured Disease Diagnosis Response
-        const sampleDiagnosis: DiseaseDiagnosisData = {
-          diseaseName: "Early Blight (Alternaria solani)",
-          confidencePct: 94,
-          affectedCrop: "Tomato / Solanaceae",
-          symptomsMatched: [
-            "Concentric dark brown target-spot rings on lower leaves",
-            "Yellow halo border surrounding leaf lesions",
-            "Slight leaf wilting around affected area",
-          ],
-          treatment: {
-            summary: "Early Blight is a fungal pathogen common during humid weather. Immediate foliage trimming and targeted spray is recommended to protect fruit yield.",
-            organicControl: "Spray Neem Seed Kernel Extract (5%) or Copper Hydroxide (2g/L) every 7-10 days. Ensure bottom leaves do not touch wet soil.",
-            chemicalControl: "Apply Mancozeb 75% WP @ 2g/liter of water or Difenoconazole 25% EC @ 1ml/liter in severe infestation.",
-            preventativeSteps: "Practice crop rotation with non-solanaceous crops (e.g. Maize/Legumes). Use drip irrigation to keep foliage dry.",
-          },
-          citationSource: "ICAR-Indian Institute of Horticultural Research (IIHR) Disease Database v2026",
-          imageUrl: attachments[0]?.url,
+        const payload: FarmerChatRequestPayload = {
+          message: userMsg.content,
+          season_id: farmerContext?.season_id,
+          image_base64: imageBase64,
+          image_name: imageAttachment?.name,
+          attachments: attachments.map((a) => ({
+            name: a.name,
+            type: a.type,
+            url: a.url,
+          })),
         };
 
-        const diagnosisMsg: ChatMessage = {
+        // 2. Call the real unified multi-agent chat endpoint
+        const resp = await sendFarmerChatMessage(farmerId, payload, farmerContext?.season_id);
+
+        const nowTime =
+          resp.timestamp ||
+          new Date().toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+        const assistantMsg: ChatMessage = {
           id: `msg_${Date.now()}`,
           role: "assistant",
-          content: "Based on computer vision analysis of your leaf photo, here is the diagnosis and recommended treatment plan:",
+          content: resp.message,
           timestamp: nowTime,
-          type: "diagnosis",
-          diagnosisData: sampleDiagnosis,
+          type: resp.type || "text",
+          planData: resp.planData,
+          diagnosisData: resp.diagnosisData,
+          schemeData: resp.schemeData,
+          marketData: resp.marketData,
+          weatherData: resp.weatherData,
+          soilData: resp.soilData,
+          validation: resp.validation,
           status: "sent",
         };
 
-        setMessages((prev) => [...prev, diagnosisMsg]);
-      } else if (isPlanQuery) {
-        // Structured Farming Plan Response
-        const districtName = farmerContext?.profile?.district || "Nashik";
-        const samplePlan: FarmingPlanData = {
-          title: `Custom Season Farming Plan — ${districtName} District`,
-          summary: `Comprehensive plan computed for ${farmerContext?.profile?.name || "Farmer"} in ${districtName}. Balances high yield, low water requirement, and PMFBY crop insurance protection.`,
-          crops: [
-            {
-              name: "Red Onion (Arka Kalyan)",
-              variety: "Rabi Season Variety",
-              suitabilityScore: 94,
-              durationDays: 120,
-              expectedYieldPerAcre: "10 - 12 Tonnes / Acre",
-              whyCrop: "Ideal soil pH and strong market demand in Nashik / Lasalgaon APMC mandi.",
-            },
-            {
-              name: "Soybean (JS 335)",
-              variety: "Kharif Variety",
-              suitabilityScore: 88,
-              durationDays: 95,
-              expectedYieldPerAcre: "1.2 - 1.5 Tonnes / Acre",
-              whyCrop: "Excellent nitrogen fixing capability; low maintenance cost.",
-            },
-          ],
-          budget: {
-            costPerAcreInr: 28500,
-            inputCostInr: 57000,
-            expectedRevenueInr: 145000,
-            expectedNetMarginInr: 88000,
-            currency: "INR",
-          },
-          irrigation: {
-            source: farmerContext?.profile?.water_source || "Drip & Rainfed",
-            frequency: "Every 4 to 6 days during vegetative growth",
-            criticalStages: [
-              "Bulb initiation phase (Day 35 - 45)",
-              "Bulb enlargement phase (Day 60 - 80)",
-            ],
-            tips: "Use drip lines with 4 LPH emitters to conserve up to 40% groundwater.",
-          },
-          schemes: [
-            {
-              schemeName: "Pradhan Mantri Fasal Bima Yojana (PMFBY)",
-              benefit: "Comprehensive crop insurance at 1.5% subsidized premium.",
-              eligibility: "All registered farmers growing notified crops in notified areas.",
-            },
-            {
-              schemeName: "Soil Health Card (SHC) Subsidy",
-              benefit: "Free micro-nutrient testing & customized fertilizer advice.",
-              eligibility: "Available to smallholder farmers.",
-            },
-          ],
-          timeline: [
-            {
-              phase: "Phase 1: Soil Preparation",
-              timeframe: "Week 1 - 2",
-              action: "Deep plowing, FYM compost application @ 5 tonnes/acre, soil health testing.",
-            },
-            {
-              phase: "Phase 2: Sowing & Base Dosing",
-              timeframe: "Week 3",
-              action: "Sowing certified seed with bio-fertilizer Trichoderma treatment.",
-            },
-            {
-              phase: "Phase 3: Nutrient & Pest Monitoring",
-              timeframe: "Week 5 - 10",
-              action: "Top dressing Nitrogen, leaf health photo scans via Krishi Agent.",
-            },
-            {
-              phase: "Phase 4: Harvest & Mandi Sale",
-              timeframe: "Week 16 - 17",
-              action: "Curing, grading, and selling at recommended Agmarknet peak price windows.",
-            },
-          ],
-        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } catch (err: unknown) {
+        console.error("Chat dispatch error:", err);
+        const errMsg = err instanceof Error ? err.message : "Failed to connect to Krishi AI agents.";
+        setNetworkError(errMsg);
 
-        const planMsg: ChatMessage = {
+        const errorMsg: ChatMessage = {
           id: `msg_${Date.now()}`,
           role: "assistant",
-          content: "Here is your AI-generated farming season plan tailored for your location:",
-          timestamp: nowTime,
-          type: "plan",
-          planData: samplePlan,
-          status: "sent",
-        };
-
-        setMessages((prev) => [...prev, planMsg]);
-      } else {
-        // General Conversational Response
-        const textMsg: ChatMessage = {
-          id: `msg_${Date.now()}`,
-          role: "assistant",
-          content: `Thank you for your question! Based on live data for ${
-            farmerContext?.profile?.district || "your region"
-          }, weather conditions are currently favorable. You can ask me to generate a full 2-acre season plan, check Agmarknet mandi prices, or upload a leaf photo to diagnose any crop disease.`,
-          timestamp: nowTime,
+          content: "Sorry, I encountered an issue connecting to the AI agents. Please check your connection and tap Retry.",
+          timestamp: new Date().toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
           type: "text",
-          status: "sent",
+          status: "error",
+          errorMessage: errMsg,
         };
 
-        setMessages((prev) => [...prev, textMsg]);
+        setMessages((prev) => [...prev, errorMsg]);
+      } finally {
+        setIsThinking(false);
       }
-
-      setIsThinking(false);
     },
-    [farmerContext]
+    [farmerId, farmerContext]
   );
 
   const handleSendMessage = (text: string, attachments: Attachment[]) => {
