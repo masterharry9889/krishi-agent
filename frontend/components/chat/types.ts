@@ -173,6 +173,8 @@ export interface DiseaseDiagnosisData {
   treatment: DiseaseTreatment;
   citationSource?: string;
   imageUrl?: string;
+  isHealthy?: boolean;
+  needsHumanReview?: boolean;
   validation?: ValidationInfo;
 }
 
@@ -190,6 +192,7 @@ export interface ChatMessage {
   weatherData?: WeatherData;
   soilData?: SoilData;
   validation?: ValidationInfo;
+  followUpSuggestions?: string[];
   status?: "sending" | "sent" | "error" | "streaming";
   errorMessage?: string;
 }

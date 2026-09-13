@@ -188,7 +188,11 @@ class BaseAgent:
             return llm_result.model_dump()
         except Exception as exc:
             # Safely log warning and return fallback
-            print(f"[BaseAgent Warning] LLM call failed ({exc}). Using structured fallback.")
+            try:
+                import logging
+                logging.getLogger(__name__).warning(f"[BaseAgent] LLM call failed ({exc}). Using structured fallback.")
+            except Exception:
+                pass  # Never let logging crash the fallback path
             return fallback_data
 
     # Alias call_claude to call_llm for backwards compatibility

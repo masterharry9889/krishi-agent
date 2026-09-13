@@ -4,22 +4,20 @@ import React, { useState } from "react";
 import { ChatMessage } from "./types";
 import { FarmingPlanCard } from "./FarmingPlanCard";
 import { DiagnosisCard } from "./DiagnosisCard";
-<<<<<<< HEAD
 import { SchemeCard } from "./SchemeCard";
 import { MarketCard } from "./MarketCard";
 import { WeatherCard } from "./WeatherCard";
 import { SoilCard } from "./SoilCard";
 import { ValidationBadge } from "./ValidationBadge";
-=======
 import { Wheat, User, FileText, X, AlertTriangle, RotateCcw } from "lucide-react";
->>>>>>> 8914a1b (Full UI Transformation)
 
 interface MessageBubbleProps {
   message: ChatMessage;
   onRetry?: (messageId: string) => void;
+  onSuggestionClick?: (prompt: string) => void;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onRetry }) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onRetry, onSuggestionClick }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const isUser = message.role === "user";
@@ -151,6 +149,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onRetry }
         {/* Information Validation Badge for Assistant Responses */}
         {!isUser && message.validation && (
           <ValidationBadge validation={message.validation} />
+        )}
+
+        {/* Follow-up Suggestion Chips */}
+        {!isUser && message.followUpSuggestions && message.followUpSuggestions.length > 0 && onSuggestionClick && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {message.followUpSuggestions.map((suggestion, idx) => (
+              <button
+                key={idx}
+                onClick={() => onSuggestionClick(suggestion)}
+                className="text-xs px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors text-left font-medium cursor-pointer"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
         )}
 
         {/* Error Retry Affordance */}

@@ -231,6 +231,16 @@ AGENT_REGISTRY: List[AgentEntry] = [
         icon_category="validation",
         aliases=["information_validation"],
     ),
+    AgentEntry(
+        key="qa",
+        display_name="Q&A Advisory",
+        description="Answers open-ended farmer questions about crops, techniques, pests, and farming practices using LLM-powered agronomic knowledge.",
+        phase="advisory",
+        implemented=True,
+        dependencies=[],
+        icon_category="advisory",
+        aliases=["question_answer", "farmer_qa"],
+    ),
 ]
 
 # ─── Convenience structures ────────────────────────────────────────────────────

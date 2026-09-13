@@ -89,7 +89,12 @@ export const MessageList: React.FC<MessageListProps> = ({
         /* Messages Stream */
         <div className="max-w-3xl mx-auto space-y-3">
           {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} onRetry={onRetryMessage} />
+            <MessageBubble 
+              key={msg.id} 
+              message={msg} 
+              onRetry={onRetryMessage} 
+              onSuggestionClick={onSuggestionClick}
+            />
           ))}
 
           {/* Thinking / Agent Processing State */}

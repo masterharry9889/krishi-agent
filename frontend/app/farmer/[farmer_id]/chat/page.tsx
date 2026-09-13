@@ -14,13 +14,6 @@ import {
 import {
   ChatMessage,
   Attachment,
-  FarmingPlanData,
-  DiseaseDiagnosisData,
-  SchemeData,
-  MarketData,
-  WeatherData,
-  SoilData,
-  ValidationInfo,
 } from "@/components/chat/types";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatComposer } from "@/components/chat/ChatComposer";
@@ -67,35 +60,53 @@ export default function FarmerChatPage({
       setIsThinking(true);
       setNetworkError(null);
 
-      const hasImage = attachments.some((a) => a.type === "image");
-      const userText = userMsg.content.toLowerCase();
+      try {
+        // Build the request payload for the backend chat endpoint
+        const chatPayload: FarmerChatRequestPayload = {
+          message: userMsg.content,
+        };
 
-      // Check query intent
-      const isPlanQuery =
-        userText.includes("plan") ||
-        userText.includes("season") ||
-        userText.includes("acre") ||
-        userText.includes("recommend");
+        // If an image attachment is present, convert it to base64 for the backend
+        const imageAtt = attachments.find((a) => a.type === "image");
+        if (imageAtt && imageAtt.file) {
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => {
+              const result = reader.result as string;
+              // Strip the data URI prefix ("data:image/...;base64,")
+              const b64 = result.includes(",") ? result.split(",")[1] : result;
+              resolve(b64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(imageAtt.file!);
+          });
+          chatPayload.image_base64 = base64;
+          chatPayload.image_name = imageAtt.name;
+        } else if (imageAtt && imageAtt.url && !imageAtt.file) {
+          // Already a data-URI or URL — extract base64 if possible
+          if (imageAtt.url.startsWith("data:")) {
+            const b64 = imageAtt.url.split(",")[1] || "";
+            chatPayload.image_base64 = b64;
+            chatPayload.image_name = imageAtt.name;
+          }
+        }
 
-      const isDiagnosisQuery =
-        hasImage ||
-        userText.includes("photo") ||
-        userText.includes("leaf") ||
-        userText.includes("spot") ||
-        userText.includes("disease");
+        // Attach crop_type hint from farmer context if available
+        if (farmerContext?.profile?.past_crops && farmerContext.profile.past_crops.length > 0) {
+          chatPayload.crop_type = farmerContext.profile.past_crops[0];
+        }
 
-      // Simulated latency for AI Agent orchestration pipeline
-      await new Promise((resolve) => setTimeout(resolve, 1800));
+        const resp = await sendFarmerChatMessage(farmerId, chatPayload);
 
-      const nowTime = new Date().toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+        const nowTime = new Date().toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
 
         const assistantMsg: ChatMessage = {
           id: `msg_${Date.now()}`,
           role: "assistant",
-          content: "Based on computer vision analysis of your leaf photo, here is the diagnosis and recommended treatment plan:",
+          content: resp.message,
           timestamp: nowTime,
           type: resp.type || "text",
           planData: resp.planData,
@@ -105,87 +116,16 @@ export default function FarmerChatPage({
           weatherData: resp.weatherData,
           soilData: resp.soilData,
           validation: resp.validation,
+          followUpSuggestions: resp.followUpSuggestions,
           status: "sent",
         };
 
-        setMessages((prev) => [...prev, diagnosisMsg]);
-      } else if (isPlanQuery) {
-        // Structured Farming Plan Response
-        const districtName = farmerContext?.profile?.district || "Nashik";
-        const samplePlan: FarmingPlanData = {
-          title: `Custom Season Farming Plan — ${districtName} District`,
-          summary: `Comprehensive plan computed for ${farmerContext?.profile?.name || "Farmer"} in ${districtName}. Balances high yield, low water requirement, and PMFBY crop insurance protection.`,
-          crops: [
-            {
-              name: "Red Onion (Arka Kalyan)",
-              variety: "Rabi Season Variety",
-              suitabilityScore: 94,
-              durationDays: 120,
-              expectedYieldPerAcre: "10 - 12 Tonnes / Acre",
-              whyCrop: "Ideal soil pH and strong market demand in Nashik / Lasalgaon APMC mandi.",
-            },
-            {
-              name: "Soybean (JS 335)",
-              variety: "Kharif Variety",
-              suitabilityScore: 88,
-              durationDays: 95,
-              expectedYieldPerAcre: "1.2 - 1.5 Tonnes / Acre",
-              whyCrop: "Excellent nitrogen fixing capability; low maintenance cost.",
-            },
-          ],
-          budget: {
-            costPerAcreInr: 28500,
-            inputCostInr: 57000,
-            expectedRevenueInr: 145000,
-            expectedNetMarginInr: 88000,
-            currency: "INR",
-          },
-          irrigation: {
-            source: farmerContext?.profile?.water_source || "Drip & Rainfed",
-            frequency: "Every 4 to 6 days during vegetative growth",
-            criticalStages: [
-              "Bulb initiation phase (Day 35 - 45)",
-              "Bulb enlargement phase (Day 60 - 80)",
-            ],
-            tips: "Use drip lines with 4 LPH emitters to conserve up to 40% groundwater.",
-          },
-          schemes: [
-            {
-              schemeName: "Pradhan Mantri Fasal Bima Yojana (PMFBY)",
-              benefit: "Comprehensive crop insurance at 1.5% subsidized premium.",
-              eligibility: "All registered farmers growing notified crops in notified areas.",
-            },
-            {
-              schemeName: "Soil Health Card (SHC) Subsidy",
-              benefit: "Free micro-nutrient testing & customized fertilizer advice.",
-              eligibility: "Available to smallholder farmers.",
-            },
-          ],
-          timeline: [
-            {
-              phase: "Phase 1: Soil Preparation",
-              timeframe: "Week 1 - 2",
-              action: "Deep plowing, FYM compost application @ 5 tonnes/acre, soil health testing.",
-            },
-            {
-              phase: "Phase 2: Sowing & Base Dosing",
-              timeframe: "Week 3",
-              action: "Sowing certified seed with bio-fertilizer Trichoderma treatment.",
-            },
-            {
-              phase: "Phase 3: Nutrient & Pest Monitoring",
-              timeframe: "Week 5 - 10",
-              action: "Top dressing Nitrogen, leaf health photo scans via Krishi Agent.",
-            },
-            {
-              phase: "Phase 4: Harvest & Mandi Sale",
-              timeframe: "Week 16 - 17",
-              action: "Curing, grading, and selling at recommended Agmarknet peak price windows.",
-            },
-          ],
-        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : "Unknown error";
+        setNetworkError(errMsg);
 
-        const planMsg: ChatMessage = {
+        const errorMsg: ChatMessage = {
           id: `msg_${Date.now()}`,
           role: "assistant",
           content: "Sorry, I encountered an issue connecting to the AI agents. Please check your connection and tap Retry.",

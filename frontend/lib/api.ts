@@ -717,6 +717,7 @@ export interface FarmerChatResponsePayload {
   weatherData?: WeatherData;
   soilData?: SoilData;
   validation?: ValidationInfo;
+  followUpSuggestions?: string[];
   timestamp: string;
 }
 
