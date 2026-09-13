@@ -1,5 +1,7 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   onboardFarmer,
@@ -7,6 +9,23 @@ import {
   OnboardResponse,
   ApiError,
 } from "@/lib/api";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  User,
+  Wheat,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 type RegistrationState = "idle" | "submitting" | "success" | "error";
 
@@ -29,12 +48,9 @@ export default function CTASection() {
     const observer = new IntersectionObserver(
       (entries) =>
         entries.forEach((e) => e.isIntersecting && e.target.classList.add("visible")),
-      { threshold: 0.15 }
+      { threshold: 0.1 }
     );
-    ref.current?.querySelectorAll(".fade-up").forEach((el, i) => {
-      (el as HTMLElement).style.transitionDelay = `${i * 0.1}s`;
-      observer.observe(el);
-    });
+    ref.current?.querySelectorAll(".fade-up").forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, []);
 
@@ -63,43 +79,10 @@ export default function CTASection() {
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Registration failed. Please try again.");
+        setError("Registration failed. Please check network connection.");
       }
       setState("error");
     }
-  };
-
-  const languages = [
-    { code: "hi", name: "Hindi" },
-    { code: "mr", name: "Marathi" },
-    { code: "ta", name: "Tamil" },
-    { code: "te", name: "Telugu" },
-    { code: "kn", name: "Kannada" },
-    { code: "pa", name: "Punjabi" },
-    { code: "gu", name: "Gujarati" },
-    { code: "bn", name: "Bengali" },
-  ];
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "0.625rem 0.875rem",
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    borderRadius: "7px",
-    fontSize: "0.875rem",
-    color: "#fff",
-    outline: "none",
-    transition: "border-color 0.2s",
-    fontFamily: "var(--font-dm-sans), sans-serif",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: "0.75rem",
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.55)",
-    marginBottom: "0.35rem",
-    display: "block",
-    letterSpacing: "0.03em",
   };
 
   return (
@@ -107,625 +90,284 @@ export default function CTASection() {
       id="cta"
       ref={ref}
       aria-labelledby="cta-heading"
-      style={{
-        background: "linear-gradient(170deg, var(--green-900) 0%, var(--soil-900) 100%)",
-        padding: "5.5rem 0 6rem",
-        position: "relative",
-        overflow: "hidden",
-      }}
+      className="py-16 sm:py-24 bg-background relative border-b border-border/80"
     >
-      {/* Decorative grain */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E\")",
-          backgroundSize: "200px 200px",
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: "-20%",
-          right: "-10%",
-          width: "500px",
-          height: "500px",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(200,137,58,0.08), transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* Left Column: Value Proposition & Security Guarantees */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="fade-up inline-flex items-center gap-2">
+              <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-primary">
+                Acreage Registration
+              </span>
+            </div>
 
-      <div
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-          padding: "0 1.5rem",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "4rem",
-          alignItems: "start",
-          position: "relative",
-          zIndex: 2,
-        }}
-        className="cta-grid"
-      >
-        {/* Left: farmer CTA */}
-        <div>
-          <div
-            className="fade-up"
-            style={{
-              fontSize: "0.6875rem",
-              fontFamily: "var(--font-jetbrains-mono), monospace",
-              letterSpacing: "0.12em",
-              color: "var(--gold-500)",
-              textTransform: "uppercase",
-              marginBottom: "0.75rem",
-            }}
-          >
-            For farmers
-          </div>
-
-          <h2
-            id="cta-heading"
-            className="fade-up"
-            style={{
-              fontFamily: "var(--font-instrument-serif), Georgia, serif",
-              fontSize: "clamp(1.75rem, 3.5vw, 2.25rem)",
-              color: "#fff",
-              lineHeight: 1.25,
-              marginBottom: "1rem",
-            }}
-          >
-            Register your
-            <br />
-            <em style={{ color: "var(--gold-300)", fontStyle: "italic" }}>
-              farming plot
-            </em>
-          </h2>
-
-          <p
-            className="fade-up"
-            style={{
-              fontSize: "0.9rem",
-              lineHeight: 1.7,
-              color: "rgba(255,255,255,0.5)",
-              marginBottom: "2rem",
-              maxWidth: "42ch",
-            }}
-          >
-            Enter your details to register. Your farmer ID and season ID will be
-            generated and stored securely in our database.
-          </p>
-
-          {state === "success" && result ? (
-            <div
-              style={{
-                background: "rgba(107,174,133,0.12)",
-                border: "1px solid rgba(107,174,133,0.3)",
-                borderRadius: "10px",
-                padding: "1.75rem",
-                textAlign: "left",
-                opacity: 1,
-              }}
+            <h2
+              id="cta-heading"
+              className="fade-up delay-1 text-2xl sm:text-3xl font-bold tracking-tight text-foreground"
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  marginBottom: "1rem",
-                }}
-              >
-                <span style={{ fontSize: "1.5rem", color: "var(--green-300)" }}>✓</span>
-                <span
-                  style={{
-                    fontSize: "1.125rem",
-                    fontWeight: 700,
-                    color: "var(--green-300)",
-                  }}
-                >
-                  Registration successful!
-                </span>
-              </div>
+              Start season-long multi-agent advisory today.
+            </h2>
 
-              <p
-                style={{
-                  fontSize: "0.95rem",
-                  lineHeight: 1.6,
-                  color: "rgba(255,255,255,0.85)",
-                  marginBottom: "1.25rem",
-                }}
-              >
-                Welcome, <strong>{form.name}</strong>! Your farm plot in {form.district} has been registered. You can now view personalized agricultural decisions, monsoon weather alerts, and crop market guidance.
-              </p>
+            <p className="fade-up delay-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
+              Register your land in under 60 seconds. Our agents will query your district&apos;s Soil
+              Health Card baseline, cross-reference upcoming Kharif mandi forecasts, and generate
+              your personalized agronomic plan.
+            </p>
 
-              <div
-                style={{
-                  fontSize: "0.85rem",
-                  background: "rgba(0,0,0,0.3)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "6px",
-                  padding: "0.85rem 1rem",
-                  color: "var(--gold-300)",
-                  marginBottom: "1.25rem",
-                }}
-              >
-                <div><strong style={{ color: "#fff" }}>Profile:</strong> Active Registered Farm</div>
-                <div><strong style={{ color: "#fff" }}>District:</strong> {form.district}</div>
-                <div><strong style={{ color: "#fff" }}>Active Season:</strong> Kharif 2026</div>
-              </div>
+            <div className="fade-up delay-3 space-y-3 pt-2">
+              {[
+                {
+                  title: "Direct Government Registry Sync",
+                  desc: "Automatic linking with 3,000+ APMC mandis, Soil Health Card API, and official PMFBY cutoff dates.",
+                },
+                {
+                  title: "Strict Data Confidentiality",
+                  desc: "Zero commercial data brokering; ISO 27001 & Digital Personal Data Protection (DPDP) Act 2023 compliant encrypted storage.",
+                },
+                {
+                  title: "Zero Setup Cost",
+                  desc: "100% subsidized open access for smallholder farmers under 5 acres and registered FPO member collectives.",
+                },
+              ].map((item) => (
+                <div key={item.title} className="flex items-start gap-3">
+                  <div className="size-5 rounded bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 text-primary">
+                    <CheckCircle2 className="size-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-foreground">{item.title}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.625rem",
-                }}
-              >
-                <Link
-                  href="/farmer/dashboard"
-                  id="cta-go-to-dashboard"
-                  style={{
-                    display: "block",
-                    textAlign: "center",
-                    background: "var(--gold-500)",
-                    color: "var(--green-900)",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "0.75rem 1rem",
-                    fontSize: "0.95rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: "var(--font-dm-sans), sans-serif",
-                    textDecoration: "none",
-                    transition: "background 0.2s, transform 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "var(--gold-300)";
-                    (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "var(--gold-500)";
-                    (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                  }}
-                >
-                  Go to My Farm →
-                </Link>
-
-                <button
-                  onClick={() => {
-                    setResult(null);
-                    setError(null);
-                    setState("idle");
-                    setForm({ name: "", phone: "", district: "", language: "hi", password: "", confirm_password: "" });
-                  }}
-                  style={{
-                    background: "transparent",
-                    color: "var(--green-300)",
-                    border: "1px solid var(--green-300)",
-                    borderRadius: "6px",
-                    padding: "0.5rem 1rem",
-                    fontSize: "0.8125rem",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-dm-sans), sans-serif",
-                    transition: "background 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.target as HTMLElement).style.background = "rgba(107,174,133,0.1)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.target as HTMLElement).style.background = "transparent";
-                  }}
-                >
-                  Register another farmer
-                </button>
-                <Link
-                  href="/admin/login"
-                  style={{
-                    display: "block",
-                    textAlign: "center",
-                    background: "transparent",
-                    color: "var(--gold-300)",
-                    border: "1px solid var(--gold-300)",
-                    borderRadius: "6px",
-                    padding: "0.5rem 1rem",
-                    fontSize: "0.8125rem",
-                    textDecoration: "none",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-dm-sans), sans-serif",
-                    transition: "background 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "rgba(218, 165, 63, 0.1)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "transparent";
-                  }}
-                >
-                  Go to Admin Dashboard →
-                </Link>
+            {/* Visual Acreage Trust Card */}
+            <div className="fade-up pt-3">
+              <div className="relative w-full aspect-[16/9] sm:aspect-[21/9] lg:aspect-[16/9] rounded-xl overflow-hidden border border-border/80 shadow-xs">
+                <Image
+                  src="/images/farmer-thriving.jpg"
+                  alt="Indian farmer holding healthy harvested produce in sunny agricultural field"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
+                  className="object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent flex items-end p-4 sm:p-5">
+                  <div className="text-white space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-white">Empowering Smallholder Acreages</span>
+                      <Badge className="bg-[#D8A94F] text-[#1A241B] text-[10px] font-mono font-bold">12 Agronomic Zones</Badge>
+                    </div>
+                    <p className="text-xs text-white/80 leading-relaxed">
+                      From Nashik onions to Malwa soybeans — autonomous agronomic guidance across every harvest milestone.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          ) : (
-            <form
-              onSubmit={handleSubmit}
-              className="fade-up"
-              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-              aria-label="Farmer registration form"
-            >
-              {(error || state === "error") && (
-                <div
-                  style={{
-                    background: "rgba(220, 53, 69, 0.15)",
-                    border: "1px solid rgba(220, 53, 69, 0.4)",
-                    borderRadius: "6px",
-                    padding: "0.75rem 1rem",
-                    fontSize: "0.875rem",
-                    fontWeight: 600,
-                    color: "#ff8080",
-                    fontFamily: "var(--font-dm-sans), sans-serif",
-                  }}
-                >
-                  ⚠️ Registration failed. Please try again.
-                  {error && (
-                    <div style={{ fontSize: "0.75rem", marginTop: "0.25rem", color: "#ffa0a0" }}>
-                      {error}
+          </div>
+
+          {/* Right Column: Registration Card */}
+          <div className="lg:col-span-6 fade-up delay-2">
+            <div className="rounded-lg border border-border/80 bg-card p-5 sm:p-7 shadow-xs">
+              {state === "success" && result ? (
+                <div className="space-y-4 py-3">
+                  <div className="size-12 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-600 mx-auto">
+                    <CheckCircle2 className="size-6" />
+                  </div>
+                  <div className="text-center space-y-1">
+                    <h3 className="text-lg font-bold text-foreground">
+                      Registration Complete!
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Your farmer account is initialized and authenticated.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-md bg-secondary/50 border border-border/60 space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Farmer Name:</span>
+                      <span className="font-semibold text-foreground">{form.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Farmer ID:</span>
+                      <span className="font-mono font-semibold text-primary">{result.farmer_id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">District:</span>
+                      <span className="text-foreground">{form.district}</span>
+                    </div>
+                  </div>
+
+                  <Link href="/farmer/dashboard" className="block w-full">
+                    <Button size="lg" className="w-full font-semibold gap-2">
+                      Enter Farm Dashboard
+                      <ArrowRight className="size-4" />
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="text-base font-semibold text-foreground">
+                      Register Farmer Profile
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      All fields are required to calibrate agronomic calculations.
+                    </p>
+                  </div>
+
+                  {state === "error" && error && (
+                    <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center gap-2">
+                      <AlertTriangle className="size-4 shrink-0" />
+                      <span>{error}</span>
                     </div>
                   )}
-                </div>
-              )}
-              <div>
-                <label htmlFor="farmer-name" style={labelStyle}>
-                  Full name
-                </label>
-                <input
-                  id="farmer-name"
-                  type="text"
-                  required
-                  disabled={state === "submitting"}
-                  placeholder="Your name"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  style={inputStyle}
-                  onFocus={(e) => ((e.target as HTMLElement).style.borderColor = "var(--gold-500)")}
-                  onBlur={(e) => ((e.target as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)")}
-                />
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "0.75rem",
-                }}
-              >
-                <div>
-                  <label htmlFor="farmer-phone" style={labelStyle}>
-                    Mobile number
-                  </label>
-                  <input
-                    id="farmer-phone"
-                    type="tel"
-                    required
-                    disabled={state === "submitting"}
-                    placeholder="+91 98765 43210"
-                    value={form.phone}
-                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    style={inputStyle}
-                    onFocus={(e) => ((e.target as HTMLElement).style.borderColor = "var(--gold-500)")}
-                    onBlur={(e) => ((e.target as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)")}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="farmer-district" style={labelStyle}>
-                    District
-                  </label>
-                  <input
-                    id="farmer-district"
-                    type="text"
-                    required
-                    disabled={state === "submitting"}
-                    placeholder="e.g. Nashik"
-                    value={form.district}
-                    onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
-                    style={inputStyle}
-                    onFocus={(e) => ((e.target as HTMLElement).style.borderColor = "var(--gold-500)")}
-                    onBlur={(e) => ((e.target as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)")}
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="farmer-language" style={labelStyle}>
-                  Preferred language
-                </label>
-                <select
-                  id="farmer-language"
-                  disabled={state === "submitting"}
-                  value={form.language}
-                  onChange={(e) => setForm((f) => ({ ...f, language: e.target.value }))}
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                  onFocus={(e) => ((e.target as HTMLElement).style.borderColor = "var(--gold-500)")}
-                  onBlur={(e) => ((e.target as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)")}
-                >
-                  {languages.map((l) => (
-                    <option key={l.code} value={l.code} style={{ background: "var(--green-900)" }}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
-                    <label htmlFor="farmer-password" style={labelStyle}>
-                      Password (min 8 chars)
-                    </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label htmlFor="farmer-name" className="text-xs font-medium text-foreground">
+                        Full Name
+                      </label>
+                      <Input
+                        id="farmer-name"
+                        placeholder="e.g. Ramesh Patil"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="farmer-phone" className="text-xs font-medium text-foreground">
+                        Mobile Number (10 digits)
+                      </label>
+                      <Input
+                        id="farmer-phone"
+                        type="tel"
+                        placeholder="9876543210"
+                        value={form.phone}
+                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        pattern="[0-9]{10}"
+                        required
+                      />
+                    </div>
                   </div>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      id="farmer-password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      minLength={8}
-                      disabled={state === "submitting"}
-                      placeholder="••••••••"
-                      value={form.password}
-                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                      style={{ ...inputStyle, paddingRight: "2.5rem" }}
-                      onFocus={(e) => ((e.target as HTMLElement).style.borderColor = "var(--gold-500)")}
-                      onBlur={(e) => ((e.target as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)")}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: "absolute",
-                        right: "0.5rem",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "rgba(255,255,255,0.6)",
-                        fontSize: "0.75rem",
-                        cursor: "pointer",
-                      }}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label htmlFor="farmer-district" className="text-xs font-medium text-foreground">
+                        District
+                      </label>
+                      <Input
+                        id="farmer-district"
+                        placeholder="e.g. Nashik"
+                        value={form.district}
+                        onChange={(e) => setForm({ ...form, district: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="farmer-language" className="text-xs font-medium text-foreground">
+                        Preferred Language
+                      </label>
+                      <select
+                        id="farmer-language"
+                        value={form.language}
+                        onChange={(e) => setForm({ ...form, language: e.target.value })}
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
+                      >
+                        <option value="hi">हिन्दी (Hindi)</option>
+                        <option value="mr">मराठी (Marathi)</option>
+                        <option value="ta">தமிழ் (Tamil)</option>
+                        <option value="te">తెలుగు (Telugu)</option>
+                        <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                        <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+                        <option value="gu">ગુજરાતી (Gujarati)</option>
+                        <option value="bn">বাংলা (Bengali)</option>
+                        <option value="en">English</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label htmlFor="farmer-password" className="text-xs font-medium text-foreground">
+                        Password (8+ characters)
+                      </label>
+                      <div className="relative">
+                        <Input
+                          id="farmer-password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Min. 8 characters"
+                          value={form.password}
+                          onChange={(e) => setForm({ ...form, password: e.target.value })}
+                          minLength={8}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="farmer-confirm-password" className="text-xs font-medium text-foreground">
+                        Confirm Password
+                      </label>
+                      <Input
+                        id="farmer-confirm-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Re-enter password"
+                        value={form.confirm_password}
+                        onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
+                        minLength={8}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    id="cta-submit"
+                    size="lg"
+                    disabled={state === "submitting"}
+                    className="w-full font-semibold mt-2"
+                  >
+                    {state === "submitting" ? (
+                      <>
+                        <Loader2 className="size-4 mr-2 animate-spin" />
+                        Initializing Agronomic State...
+                      </>
+                    ) : (
+                      <>
+                        Complete Acreage Registration
+                        <ArrowRight className="size-4 ml-1" />
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="text-center pt-1">
+                    <Link
+                      href="/farmer/login"
+                      className="text-xs text-muted-foreground hover:text-foreground hover:underline"
                     >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
+                      Already registered? Sign in to your Farm Dashboard →
+                    </Link>
                   </div>
-                </div>
-
-                <div>
-                  <label htmlFor="farmer-confirm-password" style={labelStyle}>
-                    Confirm Password
-                  </label>
-                  <input
-                    id="farmer-confirm-password"
-                    type={showPassword ? "text" : "password"}
-                    required
-                    minLength={8}
-                    disabled={state === "submitting"}
-                    placeholder="••••••••"
-                    value={form.confirm_password}
-                    onChange={(e) => setForm((f) => ({ ...f, confirm_password: e.target.value }))}
-                    style={inputStyle}
-                    onFocus={(e) => ((e.target as HTMLElement).style.borderColor = "var(--gold-500)")}
-                    onBlur={(e) => ((e.target as HTMLElement).style.borderColor = "rgba(255,255,255,0.15)")}
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                id="cta-farmer-submit"
-                disabled={state === "submitting"}
-                style={{
-                  background: state === "submitting" ? "var(--gold-700)" : "var(--gold-500)",
-                  color: "var(--green-900)",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "0.75rem",
-                  fontSize: "0.9375rem",
-                  fontWeight: 600,
-                  cursor: state === "submitting" ? "wait" : "pointer",
-                  transition: "background 0.2s, transform 0.15s",
-                  fontFamily: "var(--font-dm-sans), sans-serif",
-                  opacity: state === "submitting" ? 0.75 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (state !== "submitting") {
-                    (e.target as HTMLElement).style.background = "var(--gold-300)";
-                    (e.target as HTMLElement).style.transform = "translateY(-1px)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (state !== "submitting") {
-                    (e.target as HTMLElement).style.background = "var(--gold-500)";
-                    (e.target as HTMLElement).style.transform = "translateY(0)";
-                  }
-                }}
-              >
-                {state === "submitting" ? "Registering..." : "Register your plot →"}
-              </button>
-            </form>
-          )}
-        </div>
-
-        {/* Right: partner/FPO CTA */}
-        <div>
-          <div
-            className="fade-up"
-            style={{
-              fontSize: "0.6875rem",
-              fontFamily: "var(--font-jetbrains-mono), monospace",
-              letterSpacing: "0.12em",
-              color: "var(--green-300)",
-              textTransform: "uppercase",
-              marginBottom: "0.75rem",
-            }}
-          >
-            For partners, FPOs & agri-ops
-          </div>
-
-          <h3
-            className="fade-up"
-            style={{
-              fontFamily: "var(--font-instrument-serif), Georgia, serif",
-              fontSize: "clamp(1.5rem, 3vw, 2rem)",
-              color: "#fff",
-              lineHeight: 1.25,
-              marginBottom: "1rem",
-            }}
-          >
-            Access the ops
-            <br />
-            <em style={{ color: "var(--green-300)", fontStyle: "italic" }}>
-              dashboard and admin panel.
-            </em>
-          </h3>
-
-          <p
-            className="fade-up"
-            style={{
-              fontSize: "0.9rem",
-              lineHeight: 1.7,
-              color: "rgba(255,255,255,0.5)",
-              marginBottom: "2rem",
-              maxWidth: "40ch",
-            }}
-          >
-            See the full farmer registry, filter by district or language, view
-            individual farmer details, and manage registrations through the
-            protected admin dashboard.
-          </p>
-
-          <div
-            className="fade-up"
-            style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}
-          >
-            {[
-              {
-                id: "cta-dashboard",
-                label: "Request dashboard access",
-                sub: "For FPOs and agri-ops teams",
-                primary: true,
-              },
-              {
-                id: "cta-demo",
-                label: "Schedule a demo",
-                sub: "45-minute walkthrough with the engineering team",
-                primary: false,
-              },
-            ].map((btn) => (
-              <a
-                key={btn.id}
-                href={`mailto:partners@krishiagent.in?subject=${encodeURIComponent(btn.label)}`}
-                id={btn.id}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.2rem",
-                  padding: "1rem 1.25rem",
-                  borderRadius: "8px",
-                  textDecoration: "none",
-                  border: btn.primary
-                    ? "1.5px solid rgba(107,174,133,0.4)"
-                    : "1.5px solid rgba(255,255,255,0.12)",
-                  background: btn.primary
-                    ? "rgba(107,174,133,0.08)"
-                    : "rgba(255,255,255,0.04)",
-                  transition: "border-color 0.2s, background 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget;
-                  el.style.borderColor = btn.primary
-                    ? "rgba(107,174,133,0.7)"
-                    : "rgba(255,255,255,0.25)";
-                  el.style.background = btn.primary
-                    ? "rgba(107,174,133,0.14)"
-                    : "rgba(255,255,255,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget;
-                  el.style.borderColor = btn.primary
-                    ? "rgba(107,174,133,0.4)"
-                    : "rgba(255,255,255,0.12)";
-                  el.style.background = btn.primary
-                    ? "rgba(107,174,133,0.08)"
-                    : "rgba(255,255,255,0.04)";
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "0.9375rem",
-                    fontWeight: 600,
-                    color: btn.primary ? "var(--green-300)" : "#fff",
-                  }}
-                >
-                  {btn.label} →
-                </span>
-                <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.38)" }}>
-                  {btn.sub}
-                </span>
-              </a>
-            ))}
-          </div>
-
-          {/* Stack badges */}
-          <div
-            className="fade-up"
-            style={{
-              marginTop: "2rem",
-              paddingTop: "1.5rem",
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "0.6875rem",
-                color: "rgba(255,255,255,0.3)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                fontFamily: "var(--font-jetbrains-mono), monospace",
-                marginBottom: "0.75rem",
-              }}
-            >
-              Tech stack
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-              {["MongoDB", "FastAPI", "Next.js", "Python 3.12", "JWT Auth"].map((tag) => (
-                <span
-                  key={tag}
-                  style={{
-                    fontFamily: "var(--font-jetbrains-mono), monospace",
-                    fontSize: "0.625rem",
-                    color: "rgba(255,255,255,0.4)",
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "4px",
-                    padding: "0.2rem 0.5rem",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {tag}
-                </span>
-              ))}
+                </form>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          .cta-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }

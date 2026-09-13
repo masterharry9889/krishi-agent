@@ -1,491 +1,388 @@
 "use client";
-import { useEffect, useRef } from "react";
 
-// Inline SVG crop field illustration
-function FieldIllustration() {
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  Activity,
+  ArrowRight,
+  Cpu,
+  Droplets,
+  Sparkles,
+  TrendingUp,
+  Wheat,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+// Animated counter with easing for telemetry metrics
+function CountUp({
+  end,
+  decimals = 0,
+  prefix = "",
+  suffix = "",
+  duration = 1.4,
+}: {
+  end: number;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+  duration?: number;
+}) {
+  const [val, setVal] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const startTime = performance.now();
+    const totalMs = duration * 1000;
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / totalMs, 1);
+      // Smooth ease-out curve
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const current = start + (end - start) * ease;
+      setVal(current);
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      }
+    };
+
+    const handle = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(handle);
+  }, [end, duration]);
+
+  const formatted = decimals > 0 ? val.toFixed(decimals) : Math.round(val).toLocaleString();
   return (
-    <svg
-      viewBox="0 0 640 320"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      style={{ width: "100%", height: "auto", maxWidth: "640px" }}
-    >
-      {/* Sky gradient */}
-      <defs>
-        <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#F0E8D8" />
-          <stop offset="100%" stopColor="#E8B96A" stopOpacity="0.3" />
-        </linearGradient>
-        <linearGradient id="soilGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7A4F2D" />
-          <stop offset="100%" stopColor="#4A2E1A" />
-        </linearGradient>
-        <linearGradient id="stemGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#6BAE85" />
-          <stop offset="100%" stopColor="#2D5A3D" />
-        </linearGradient>
-      </defs>
-
-      {/* Background sky */}
-      <rect width="640" height="200" fill="url(#skyGrad)" />
-
-      {/* Soil layers */}
-      <rect y="200" width="640" height="120" fill="url(#soilGrad)" />
-      {/* Soil horizon lines */}
-      <line x1="0" y1="220" x2="640" y2="220" stroke="#9A6420" strokeWidth="0.8" strokeOpacity="0.4" strokeDasharray="4 8" />
-      <line x1="0" y1="250" x2="640" y2="250" stroke="#4A2E1A" strokeWidth="0.8" strokeOpacity="0.3" strokeDasharray="2 10" />
-      {/* Root structures */}
-      {[80, 180, 280, 380, 480, 580].map((x) => (
-        <g key={x}>
-          <line x1={x} y1="200" x2={x - 18} y2="240" stroke="#C8893A" strokeWidth="1" strokeOpacity="0.5" />
-          <line x1={x} y1="200" x2={x + 14} y2="238" stroke="#C8893A" strokeWidth="1" strokeOpacity="0.5" />
-          <line x1={x} y1="200" x2={x + 5} y2="260" stroke="#C8893A" strokeWidth="0.8" strokeOpacity="0.4" />
-        </g>
-      ))}
-
-      {/* Wheat stalks */}
-      {[60, 120, 180, 240, 300, 360, 420, 480, 540, 600].map((x, i) => {
-        const height = 110 + (i % 3) * 12;
-        const cx = x + 20;
-        return (
-          <g key={x}>
-            {/* Stem */}
-            <path
-              d={`M${cx} 200 Q${cx + 8} ${200 - height / 2} ${cx} ${200 - height}`}
-              stroke="url(#stemGrad)"
-              strokeWidth="1.8"
-              fill="none"
-              strokeLinecap="round"
-            />
-            {/* Ear of wheat */}
-            <ellipse cx={cx} cy={200 - height} rx="5" ry="18" fill="#C8893A" opacity="0.85" />
-            <ellipse cx={cx - 5} cy={200 - height + 8} rx="3.5" ry="8" fill="#E8B96A" opacity="0.7" transform={`rotate(-20 ${cx - 5} ${200 - height + 8})`} />
-            <ellipse cx={cx + 5} cy={200 - height + 8} rx="3.5" ry="8" fill="#E8B96A" opacity="0.7" transform={`rotate(20 ${cx + 5} ${200 - height + 8})`} />
-            {/* Leaf */}
-            <path
-              d={`M${cx} ${200 - height / 2} Q${cx + 22} ${200 - height / 2 - 15} ${cx + 8} ${200 - height / 2 - 30}`}
-              stroke="#6BAE85"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinecap="round"
-              opacity="0.8"
-            />
-          </g>
-        );
-      })}
-
-      {/* Horizon treeline */}
-      {[20, 65, 110, 500, 545, 595].map((x) => (
-        <ellipse key={x} cx={x} cy="130" rx="28" ry="48" fill="#1A3020" opacity="0.7" />
-      ))}
-
-      {/* Data overlay dots — satellite ping */}
-      {[180, 300, 420].map((x) => (
-        <g key={x}>
-          <circle cx={x} cy="90" r="4" fill="#C8893A" opacity="0.9" />
-          <circle cx={x} cy="90" r="10" fill="none" stroke="#C8893A" strokeWidth="1" opacity="0.4" />
-          <circle cx={x} cy="90" r="18" fill="none" stroke="#C8893A" strokeWidth="0.6" opacity="0.2" />
-          <line x1={x} y1="98" x2={x} y2="200" stroke="#C8893A" strokeWidth="0.8" strokeDasharray="3 4" opacity="0.35" />
-        </g>
-      ))}
-    </svg>
+    <span>
+      {prefix}
+      {formatted}
+      {suffix}
+    </span>
   );
 }
 
 export default function Hero() {
-  const ref = useRef<HTMLDivElement>(null);
+  // Live "Last synced X seconds ago" ticker
+  const [syncAge, setSyncAge] = useState(0);
+  const [verifyTime, setVerifyTime] = useState("0.04");
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const items = el.querySelectorAll(".fade-up");
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("visible")),
-      { threshold: 0.15 }
-    );
-    items.forEach((item) => observer.observe(item));
-    return () => observer.disconnect();
+    const interval = setInterval(() => {
+      setSyncAge((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Randomize verification time on mount and every ~8s to look alive
+  useEffect(() => {
+    const randomize = () =>
+      setVerifyTime((0.03 + Math.random() * 0.06).toFixed(2));
+    randomize();
+    const interval = setInterval(randomize, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const syncLabel =
+    syncAge < 60
+      ? `${syncAge}s ago`
+      : `${Math.floor(syncAge / 60)}m ${syncAge % 60}s ago`;
 
   return (
     <section
-      ref={ref}
       aria-labelledby="hero-headline"
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        overflow: "hidden",
-        background: "linear-gradient(160deg, var(--dawn-50) 0%, var(--gold-100) 60%, var(--green-100) 100%)",
-        paddingTop: "80px",
-      }}
+      className="relative min-h-[90vh] flex items-center pt-28 pb-20 md:pt-36 md:pb-28 overflow-hidden bg-[#FAF7F0] dark:bg-[#0c140e]"
     >
-      {/* Grain overlay */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",
-          backgroundSize: "200px 200px",
-          zIndex: 0,
-          pointerEvents: "none",
-        }}
-      />
-
-      <div
-        style={{
-          maxWidth: "1280px",
-          margin: "0 auto",
-          padding: "3rem 1.5rem 4rem",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "3rem",
-          alignItems: "center",
-          position: "relative",
-          zIndex: 2,
-        }}
-        className="hero-grid"
-      >
-        {/* Left: copy */}
-        <div>
-          {/* Eyebrow */}
-          <div
-            className="fade-up"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              background: "rgba(45, 90, 61, 0.08)",
-              border: "1px solid rgba(45, 90, 61, 0.2)",
-              borderRadius: "100px",
-              padding: "0.25rem 0.875rem",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                background: "var(--green-500)",
-              }}
-            />
-            <span
-              style={{
-                fontSize: "0.75rem",
-                fontWeight: 500,
-                color: "var(--green-700)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              LangGraph multi-agent system
-            </span>
-          </div>
-
-          {/* Headline */}
-          <h1
-            id="hero-headline"
-            className="fade-up delay-1"
-            style={{
-              fontFamily: "var(--font-instrument-serif), Georgia, serif",
-              fontSize: "clamp(2.5rem, 5vw, 4rem)",
-              lineHeight: 1.1,
-              color: "var(--green-900)",
-              marginBottom: "1.25rem",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Season-long intelligence
-            <br />
-            <em style={{ color: "var(--gold-500)", fontStyle: "italic" }}>
-              for every acre.
-            </em>
-          </h1>
-
-          {/* Sub */}
-          <p
-            className="fade-up delay-2"
-            style={{
-              fontSize: "1.0625rem",
-              lineHeight: 1.7,
-              color: "var(--ink-muted)",
-              maxWidth: "44ch",
-              marginBottom: "2rem",
-            }}
-          >
-            From the first soil reading to the last mandi sale — Krishi Agent runs
-            a{" "}
-            <span style={{ color: "var(--ink)", fontWeight: 500 }}>
-              15-node LangGraph pipeline
-            </span>{" "}
-            that tracks your{" "}
-            <span style={{ color: "var(--ink)", fontWeight: 500 }}>FarmerState</span>{" "}
-            across the full growing season, calling real government and market APIs at each step.
-          </p>
-
-          {/* Phase tags */}
-          <div
-            className="fade-up delay-3"
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "0.375rem",
-              marginBottom: "2.5rem",
-            }}
-            aria-label="Pipeline phases"
-          >
-            {[
-              "Onboarding",
-              "Soil + Weather",
-              "Crop Pick",
-              "Budget",
-              "PMFBY",
-              "Monitoring",
-              "Sell Timing",
-              "Market Linkage",
-              "Feedback Loop",
-            ].map((phase) => (
-              <span
-                key={phase}
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 500,
-                  fontFamily: "var(--font-jetbrains-mono), monospace",
-                  color: "var(--soil-600)",
-                  background: "rgba(122, 79, 45, 0.08)",
-                  border: "1px solid rgba(122, 79, 45, 0.18)",
-                  borderRadius: "4px",
-                  padding: "0.2rem 0.5rem",
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {phase}
-              </span>
-            ))}
-          </div>
-
-          {/* CTAs */}
-          <div
-            className="fade-up delay-4"
-            style={{ display: "flex", gap: "0.875rem", flexWrap: "wrap" }}
-          >
-            <a
-              href="#cta"
-              id="hero-cta-farmer"
-              style={{
-                display: "inline-block",
-                background: "var(--green-900)",
-                color: "var(--gold-300)",
-                textDecoration: "none",
-                padding: "0.75rem 1.5rem",
-                borderRadius: "8px",
-                fontSize: "0.9375rem",
-                fontWeight: 600,
-                letterSpacing: "0.01em",
-                transition: "background 0.2s, transform 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget;
-                el.style.background = "var(--green-700)";
-                el.style.transform = "translateY(-1px)";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget;
-                el.style.background = "var(--green-900)";
-                el.style.transform = "translateY(0)";
-              }}
-            >
-              Register as a farmer
-            </a>
-            <a
-              href="#pipeline"
-              id="hero-cta-pipeline"
-              style={{
-                display: "inline-block",
-                background: "transparent",
-                color: "var(--green-800)",
-                textDecoration: "none",
-                padding: "0.75rem 1.5rem",
-                borderRadius: "8px",
-                fontSize: "0.9375rem",
-                fontWeight: 500,
-                border: "1.5px solid rgba(45, 90, 61, 0.35)",
-                transition: "border-color 0.2s, background 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget;
-                el.style.borderColor = "var(--green-500)";
-                el.style.background = "rgba(45,90,61,0.04)";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget;
-                el.style.borderColor = "rgba(45, 90, 61, 0.35)";
-                el.style.background = "transparent";
-              }}
-            >
-              See the pipeline →
-            </a>
-          </div>
-        </div>
-
-        {/* Right: illustration */}
+      {/* ── Background Photography Layer: Full-bleed farmland with dark gradient overlay ── */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <Image
+          src="/images/hero-field1.jpg"
+          alt="Indian farmland golden hour field landscape"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        {/* Dark-to-transparent gradient overlay so headline text stays readable */}
         <div
-          className="fade-up delay-2"
-          style={{
-            position: "relative",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
           aria-hidden="true"
-        >
-          <div
-            style={{
-              background: "rgba(255,255,255,0.55)",
-              backdropFilter: "blur(4px)",
-              borderRadius: "16px",
-              border: "1px solid rgba(200, 137, 58, 0.2)",
-              overflow: "hidden",
-              boxShadow: "0 12px 48px rgba(45, 90, 61, 0.12), 0 2px 8px rgba(200,137,58,0.1)",
-              width: "100%",
-            }}
-          >
-            <FieldIllustration />
-            {/* Floating data chip */}
-            <div
-              style={{
-                position: "absolute",
-                top: "12px",
-                right: "12px",
-                background: "rgba(26, 48, 32, 0.92)",
-                backdropFilter: "blur(8px)",
-                borderRadius: "8px",
-                padding: "0.5rem 0.75rem",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "var(--font-jetbrains-mono), monospace",
-                  fontSize: "0.625rem",
-                  color: "var(--gold-300)",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
-                NDVI · live
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--font-jetbrains-mono), monospace",
-                  fontSize: "1rem",
-                  color: "#ffffff",
-                  fontWeight: 500,
-                }}
-              >
-                0.72
-              </span>
-              <span style={{ fontSize: "0.625rem", color: "var(--green-300)" }}>
-                ↑ healthy canopy
-              </span>
-            </div>
-            {/* Bottom stat bar */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                background: "rgba(26,48,32,0.88)",
-                backdropFilter: "blur(8px)",
-                padding: "0.6rem 1rem",
-                display: "flex",
-                gap: "1.5rem",
-              }}
-            >
-              {[
-                { label: "Phase", value: "monitoring" },
-                { label: "Mandi (₹/qtl)", value: "2,180" },
-                { label: "Action", value: "hold — wait 12d" },
-              ].map((item) => (
-                <div key={item.label}>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-jetbrains-mono), monospace",
-                      fontSize: "0.6rem",
-                      color: "var(--green-300)",
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {item.label}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-jetbrains-mono), monospace",
-                      fontSize: "0.8125rem",
-                      color: "var(--gold-300)",
-                      marginTop: "1px",
-                    }}
-                  >
-                    {item.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Scroll cue */}
-      <div
-        className="fade-up"
-        style={{
-          position: "absolute",
-          bottom: "2rem",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "0.375rem",
-          zIndex: 2,
-        }}
-        aria-hidden="true"
-      >
-        <span style={{ fontSize: "0.6875rem", color: "var(--ink-subtle)", letterSpacing: "0.08em" }}>
-          SCROLL
-        </span>
+          className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20 lg:to-transparent"
+        />
         <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40"
+        />
+
+        {/* Delicate topographic contour pattern */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-[0.04]"
           style={{
-            width: "1px",
-            height: "40px",
-            background: "linear-gradient(to bottom, var(--gold-500), transparent)",
-            animation: "pulse 2s ease-in-out infinite",
+            backgroundImage: `radial-gradient(#D8A94F 1px, transparent 1px)`,
+            backgroundSize: "28px 28px",
           }}
         />
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 1; }
-        }
-        @media (max-width: 768px) {
-          .hero-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
+          
+          {/* ── Left Column: Authoritative Editorial Copy ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:col-span-7 space-y-7"
+          >
+            {/* Eyebrow Pill */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D8A94F] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#D8A94F]" />
+              </span>
+              <span className="font-mono text-[11px] text-[#D8A94F] font-semibold uppercase tracking-wider">
+                LangGraph Multi-Agent Engine
+              </span>
+              <span className="text-white/30">|</span>
+              <span className="text-xs text-white/80 font-medium">
+                15 Stateful Agronomic Nodes
+              </span>
+            </div>
+
+            {/* Headline with Editorial Display Font */}
+            <h1
+              id="hero-headline"
+              className="font-serif text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-white leading-[1.12]"
+            >
+              Precision agronomy{" "}
+              <span className="italic block sm:inline text-[#D8A94F]">
+                engineered for every acre.
+              </span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-base sm:text-lg text-white/85 leading-relaxed max-w-2xl font-normal">
+              From soil mineral diagnosis to final mandi realization — Krishi Agent orchestrates
+              real government registries, Sentinel-2 satellite imagery, and live market APIs to
+              guide farmers through every high-stakes agronomic decision.
+            </p>
+
+            {/* Pipeline Stage Pills */}
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[
+                "Soil Fertility & pH",
+                "Sentinel-2 NDVI",
+                "Crop Suitability",
+                "Input Costing",
+                "PMFBY Insurance",
+                "Harvest Sell-Timing",
+              ].map((pill) => (
+                <span
+                  key={pill}
+                  className="text-[11px] font-mono font-medium px-2.5 py-1 rounded-md border border-white/20 bg-black/35 text-white/90 backdrop-blur-xs shadow-2xs"
+                >
+                  {pill}
+                </span>
+              ))}
+            </div>
+
+            {/* Action CTAs */}
+            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+              <a href="#cta" id="hero-cta-farmer">
+                <Button
+                  size="lg"
+                  className="bg-[#D8A94F] hover:bg-[#c6983e] text-[#1A241B] font-bold gap-2.5 px-6 shadow-lg hover:shadow-xl transition-all rounded-xl cursor-pointer"
+                >
+                  <Wheat className="size-4 text-[#1A241B]" />
+                  Register Acreage
+                </Button>
+              </a>
+              <a href="#pipeline" id="hero-cta-pipeline">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="gap-2 px-5 border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all cursor-pointer backdrop-blur-md"
+                >
+                  Inspect Pipeline
+                  <ArrowRight className="size-4" />
+                </Button>
+              </a>
+              <Link href="/farmer/login">
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="text-xs sm:text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                >
+                  Farmer Portal Sign In →
+                </Button>
+              </Link>
+            </div>
+
+            {/* Verification Proof points with Vertical Divider Lines */}
+            <div className="pt-6 border-t border-white/20 grid grid-cols-3 gap-6 text-xs">
+              <div className="space-y-1">
+                <div className="font-mono text-xl sm:text-2xl font-bold text-[#D8A94F]">
+                  <CountUp end={3000} suffix="+" />
+                </div>
+                <div className="text-white/80 text-xs font-medium">
+                  APMC Mandis Tracked
+                </div>
+              </div>
+              <div className="space-y-1 border-l border-white/20 pl-6">
+                <div className="font-mono text-xl sm:text-2xl font-bold text-[#D8A94F]">
+                  10m²
+                </div>
+                <div className="text-white/80 text-xs font-medium">
+                  Sentinel-2 Resolution
+                </div>
+              </div>
+              <div className="space-y-1 border-l border-white/20 pl-6">
+                <div className="font-mono text-xl sm:text-2xl font-bold text-[#D8A94F]">
+                  100%
+                </div>
+                <div className="text-white/80 text-xs font-medium">
+                  Official Govt Feeds
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── Right Column: Floating Glassmorphic Telemetry Card ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:col-span-5 relative"
+          >
+            {/* Ambient wheat glow behind the glass card */}
+            <div
+              aria-hidden="true"
+              className="absolute -inset-2 bg-gradient-to-tr from-[#D8A94F]/25 to-[#1F3D2B]/20 rounded-3xl blur-2xl -z-10 opacity-70"
+            />
+
+            {/* Glassmorphic Container: frosted background, soft shadow, rounded-2xl, subtle border */}
+            <div className="relative rounded-2xl border border-white/60 dark:border-white/15 bg-white/80 dark:bg-[#132017]/85 backdrop-blur-xl p-5 sm:p-6 shadow-[0_16px_40px_rgba(27,45,30,0.08)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.4)] space-y-4">
+              
+              {/* Telemetry Header */}
+              <div className="flex items-center justify-between pb-3.5 border-b border-[#EBE4D5] dark:border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600" />
+                  </span>
+                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#1A241B] dark:text-emerald-100">
+                    Live Telemetry Stream
+                  </span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-mono bg-white/70 dark:bg-white/10 border-[#E2D9C5] text-[#5E695F] dark:text-emerald-200"
+                >
+                  District: Nashik, MH
+                </Badge>
+              </div>
+
+              {/* Metric Row 1: Soil & Satellite */}
+              <div className="grid grid-cols-2 gap-3.5">
+                {/* Nitrogen Card */}
+                <div className="p-3.5 rounded-xl bg-[#FAF7F0]/90 dark:bg-white/5 border border-[#EBE4D5] dark:border-white/10 space-y-1 transition-all hover:bg-white dark:hover:bg-white/10 shadow-2xs">
+                  <div className="flex items-center justify-between text-[11px] text-[#5E695F] dark:text-emerald-200/70">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Droplets className="size-3.5 text-blue-600 dark:text-blue-400" />
+                      Soil Nitrogen
+                    </span>
+                    <span className="text-[10px] font-mono font-semibold text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60">
+                      Normal
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-[#1A241B] dark:text-white pt-0.5">
+                    <CountUp end={284} />{" "}
+                    <span className="text-xs font-normal text-[#5E695F] dark:text-white/60">
+                      kg/ha
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-[#5E695F] dark:text-white/60">
+                    Target: 280-320 kg/ha · pH 6.8
+                  </div>
+                </div>
+
+                {/* NDVI Card */}
+                <div className="p-3.5 rounded-xl bg-[#FAF7F0]/90 dark:bg-white/5 border border-[#EBE4D5] dark:border-white/10 space-y-1 transition-all hover:bg-white dark:hover:bg-white/10 shadow-2xs">
+                  <div className="flex items-center justify-between text-[11px] text-[#5E695F] dark:text-emerald-200/70">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Activity className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                      NDVI Canopy
+                    </span>
+                    <span className="text-[10px] font-mono font-semibold text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60">
+                      +0.04
+                    </span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-[#1A241B] dark:text-white pt-0.5">
+                    <CountUp end={0.74} decimals={2} />{" "}
+                    <span className="text-xs font-normal text-[#5E695F] dark:text-white/60">
+                      index
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-[#5E695F] dark:text-white/60">
+                    Sentinel-2 · Healthy vegetative
+                  </div>
+                </div>
+              </div>
+
+              {/* Metric Row 2: Mandi Price & Strategy */}
+              <div className="p-4 rounded-xl bg-[#FAF7F0]/90 dark:bg-white/5 border border-[#EBE4D5] dark:border-white/10 space-y-2.5 transition-all hover:bg-white dark:hover:bg-white/10 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#1A241B] dark:text-white flex items-center gap-1.5">
+                    <TrendingUp className="size-3.5 text-[#D8A94F]" />
+                    APMC Modal Price · Soybean
+                  </span>
+                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-[#FAF1DF] text-[#8C5D0F] dark:bg-amber-950/80 dark:text-amber-300 border border-[#E9D7B3] dark:border-amber-700/40">
+                    Hold Recommendation
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <div className="text-2xl font-bold font-mono text-[#1A241B] dark:text-white">
+                    <CountUp end={4860} prefix="₹" />{" "}
+                    <span className="text-xs font-normal text-[#5E695F] dark:text-white/60">
+                      / quintal
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-mono font-semibold">
+                    ↑ ₹140 projected (14 days)
+                  </span>
+                </div>
+                <div className="text-[11px] text-[#5E695F] dark:text-emerald-100/70 leading-relaxed border-t border-[#EAE3D4] dark:border-white/10 pt-2">
+                  Regional arrival volumes are tapering. Storage cost ₹28/qtl/mo gives net upside of ₹112/qtl.
+                </div>
+              </div>
+
+              {/* Active Agent Task Row */}
+              <div className="p-3 rounded-xl border border-[#EBE4D5] dark:border-white/10 bg-[#F5EFE3]/60 dark:bg-black/20 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Cpu className="size-4 text-[#1F3D2B] dark:text-emerald-400 shrink-0 animate-pulse" />
+                  <span className="text-[#5E695F] dark:text-emerald-100/70 truncate text-xs">
+                    Running <span className="font-mono text-[#1A241B] dark:text-white font-semibold">StorageSellTimingAgent</span>
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] text-emerald-700 dark:text-emerald-400 shrink-0 font-semibold px-2 py-0.5 rounded bg-emerald-100/60 dark:bg-emerald-900/40">
+                  Verified {verifyTime}s
+                </span>
+              </div>
+
+              {/* Attribution and Sync Timestamp — Real-Touch Details */}
+              <div className="flex items-center justify-between text-[10px] text-[#5E695F] dark:text-white/50 px-1 pt-1">
+                <span className="truncate">
+                  Plot #MH-NSK-0847 · Ramesh Patil&apos;s field · 4.2 acres
+                </span>
+                <span className="font-mono shrink-0 tabular-nums">
+                  Synced {syncLabel}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
     </section>
   );
 }

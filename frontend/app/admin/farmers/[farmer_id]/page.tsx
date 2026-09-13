@@ -15,6 +15,18 @@ import {
   ApiError,
 } from "@/lib/api";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Trash2,
+  User,
+  Wheat,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function FarmerDetailPage({
   params,
@@ -136,126 +148,116 @@ export default function FarmerDetailPage({
   const isRegistered = farmer?.status === "registered";
 
   return (
-    <div className="min-h-screen bg-stone-100 font-sans text-stone-900 flex flex-col">
+    <div className="min-h-screen bg-background font-sans text-foreground flex flex-col">
       <AdminHeader onLogout={handleLogout} />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         {/* Navigation Back Link */}
         <div>
-          <Link
-            href="/admin"
-            className="inline-flex items-center space-x-1.5 text-xs font-semibold text-stone-600 hover:text-amber-800 transition bg-white px-3 py-1.5 rounded-lg border border-stone-300 shadow-xs"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to Dashboard</span>
+          <Link href="/admin">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <ArrowLeft className="size-3.5" />
+              Back to Registry
+            </Button>
           </Link>
         </div>
 
         {/* Global Error Banner */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-xl p-4 flex items-center space-x-2">
-            <span className="font-bold text-rose-600 text-base">⚠️</span>
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs sm:text-sm rounded-lg p-3.5 flex items-center gap-2 shadow-2xs">
+            <AlertTriangle className="size-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Success Banner */}
         {successMsg && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl p-4 flex items-center space-x-2">
-            <span className="font-bold text-emerald-600 text-base">✓</span>
+          <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm rounded-lg p-3.5 flex items-center gap-2 shadow-2xs">
+            <CheckCircle2 className="size-4 shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}
 
         {loading ? (
-          // Loading Skeleton
-          <div className="bg-white rounded-2xl border border-stone-200 p-8 space-y-6 animate-pulse">
-            <div className="flex items-center space-x-4">
-              <div className="w-14 h-14 rounded-full bg-stone-200" />
+          <div className="rounded-lg border border-border/80 bg-card p-8 space-y-4 animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="size-12 rounded bg-muted" />
               <div className="space-y-2">
-                <div className="h-6 w-48 bg-stone-200 rounded" />
-                <div className="h-4 w-32 bg-stone-200 rounded" />
+                <div className="h-5 w-44 bg-muted rounded" />
+                <div className="h-3 w-32 bg-muted rounded" />
               </div>
             </div>
-            <div className="h-24 bg-stone-200 rounded-xl" />
-            <div className="h-40 bg-stone-200 rounded-xl" />
+            <div className="h-24 bg-muted rounded" />
+            <div className="h-36 bg-muted rounded" />
           </div>
         ) : !farmer ? (
-          // Not Found State
-          <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center">
-            <h2 className="text-xl font-bold text-stone-900 mb-2">Farmer Record Not Found</h2>
-            <p className="text-sm text-stone-500 mb-6">
+          <div className="rounded-lg border border-border/80 bg-card p-12 text-center space-y-3">
+            <h2 className="text-base font-bold text-foreground">Farmer Record Not Found</h2>
+            <p className="text-xs text-muted-foreground">
               The requested farmer ID does not exist or has been removed.
             </p>
-            <Link
-              href="/admin"
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg transition"
-            >
-              Return to Directory
+            <Link href="/admin">
+              <Button size="sm">Return to Directory</Button>
             </Link>
           </div>
         ) : (
-          // Farmer Detail Card
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
+          <div className="rounded-lg border border-border/80 bg-card shadow-xs overflow-hidden">
             {/* Header Profile Banner */}
-            <div className="bg-stone-900 p-6 sm:p-8 text-white border-b border-amber-900/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-14 h-14 rounded-full bg-amber-600/30 border border-amber-500/40 text-amber-200 flex items-center justify-center font-bold text-2xl shadow-inner">
+            <div className="bg-secondary/60 p-6 border-b border-border/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded bg-secondary border border-border text-foreground flex items-center justify-center font-bold text-base shadow-2xs">
                   {farmer.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold font-serif text-amber-100">
+                  <h1 className="text-lg sm:text-xl font-bold text-foreground">
                     {farmer.name}
                   </h1>
-                  <p className="text-xs text-stone-400 font-mono mt-0.5">
-                    Farmer ID: {farmer.farmer_id}
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                    ID: {farmer.farmer_id}
                   </p>
                 </div>
               </div>
 
               <div>
                 {isRegistered ? (
-                  <span className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                    <span>Status: Registered</span>
-                  </span>
+                  <Badge variant="success" className="text-xs font-mono">
+                    <span className="size-1.5 rounded-full bg-emerald-500 mr-1.5" />
+                    Status: Registered
+                  </Badge>
                 ) : (
-                  <span className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-stone-200 text-stone-700 border border-stone-300">
-                    <span className="w-2 h-2 rounded-full bg-stone-500" />
-                    <span>Status: Deactivated</span>
-                  </span>
+                  <Badge variant="neutral" className="text-xs font-mono">
+                    Status: Deactivated
+                  </Badge>
                 )}
               </div>
             </div>
 
             {/* Profile Meta Grid */}
-            <div className="p-6 sm:p-8 space-y-6">
-              <div className="bg-stone-50 rounded-xl p-5 border border-stone-200 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="p-6 space-y-6 text-xs">
+              <div className="bg-secondary/30 rounded-md p-4 border border-border/70 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-1">
+                  <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Phone Number
                   </span>
-                  <span className="text-base font-mono font-medium text-stone-900">
+                  <span className="font-mono text-sm font-medium text-foreground">
                     {farmer.phone}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-1">
+                  <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Language Preference
                   </span>
-                  <span className="text-base font-medium text-stone-900">
+                  <span className="font-medium text-sm text-foreground">
                     {formatLanguageLabel(farmer.language)}
                   </span>
                 </div>
 
-                <div className="sm:col-span-2 border-t border-stone-200/80 pt-4">
-                  <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-1">
-                    Season Identifier (UUID)
+                <div className="sm:col-span-2 border-t border-border/60 pt-3">
+                  <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                    Active Season ID
                   </span>
-                  <span className="text-xs font-mono bg-white px-3 py-1.5 rounded-lg border border-stone-200 text-amber-900 block truncate">
+                  <span className="font-mono text-xs text-foreground bg-background p-2 rounded border border-border block truncate">
                     {farmer.season_id}
                   </span>
                 </div>
@@ -263,35 +265,34 @@ export default function FarmerDetailPage({
 
               {/* Editable Form */}
               <form onSubmit={handleSave} className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 border-b border-stone-200 pb-2">
-                  Update Farmer Record
+                <h3 className="text-xs font-semibold text-foreground border-b border-border/60 pb-1">
+                  Update District & Language Parameters
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="detail-district" className="block text-xs font-semibold text-stone-700 mb-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label htmlFor="detail-district" className="text-xs font-medium text-foreground">
                       District
                     </label>
-                    <input
+                    <Input
                       id="detail-district"
                       type="text"
                       required
                       value={district}
                       onChange={(e) => setDistrict(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
                       placeholder="e.g. Nashik"
                     />
                   </div>
 
-                  <div>
-                    <label htmlFor="detail-language" className="block text-xs font-semibold text-stone-700 mb-1">
+                  <div className="space-y-1">
+                    <label htmlFor="detail-language" className="text-xs font-medium text-foreground">
                       Language
                     </label>
                     <select
                       id="detail-language"
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500 transition cursor-pointer"
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs sm:text-sm text-foreground outline-none cursor-pointer"
                     >
                       {Object.entries(SUPPORTED_LANGUAGES).map(([code, item]) => (
                         <option key={code} value={code}>
@@ -303,81 +304,76 @@ export default function FarmerDetailPage({
                 </div>
 
                 {/* Timestamps */}
-                <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-500 font-mono">
+                <div className="pt-2 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-muted-foreground font-mono">
                   <div>
-                    <span className="font-semibold text-stone-700">Created On:</span>{" "}
+                    <span className="text-foreground block font-semibold">Created On:</span>
                     {formatDate(farmer.created_at)}
                   </div>
                   <div>
-                    <span className="font-semibold text-stone-700">Last Modified:</span>{" "}
+                    <span className="text-foreground block font-semibold">Last Modified:</span>
                     {formatDate(farmer.updated_at)}
                   </div>
                 </div>
 
                 <div className="pt-2 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition disabled:opacity-50 flex items-center space-x-2"
-                  >
-                    {saving && (
-                      <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
-                    )}
-                    <span>{saving ? "Saving..." : "Save Changes (PATCH)"}</span>
-                  </button>
+                  <Button type="submit" disabled={saving} size="sm">
+                    {saving && <Loader2 className="size-3 mr-1.5 animate-spin" />}
+                    Save Changes
+                  </Button>
                 </div>
               </form>
 
               {/* Deactivation Box */}
               {isRegistered && (
-                <div className="pt-6 border-t border-stone-200">
+                <div className="pt-4 border-t border-border/80">
                   {!showDeactivateConfirm ? (
-                    <div className="flex items-center justify-between bg-rose-50/60 p-4 rounded-xl border border-rose-200">
+                    <div className="flex items-center justify-between p-4 rounded-md bg-destructive/5 border border-destructive/20">
                       <div>
-                        <h4 className="text-xs font-bold text-rose-900">Deactivate Farmer Account</h4>
-                        <p className="text-xs text-rose-700 mt-0.5">
-                          Soft delete account status to deactivated.
+                        <h4 className="text-xs font-bold text-destructive">Deactivate Farmer Account</h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Marks the account as deactivated and suspends advisory access.
                         </p>
                       </div>
-                      <button
+                      <Button
                         type="button"
+                        variant="destructive"
+                        size="xs"
                         onClick={() => setShowDeactivateConfirm(true)}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition shadow-xs"
                       >
+                        <Trash2 className="size-3 mr-1" />
                         Deactivate
-                      </button>
+                      </Button>
                     </div>
                   ) : (
-                    <div className="bg-rose-100 p-5 rounded-xl border border-rose-300 space-y-4">
-                      <div className="flex items-start space-x-3 text-rose-900">
-                        <span className="text-xl font-bold">⚠️</span>
-                        <div className="text-xs">
-                          <p className="font-bold text-sm">Confirm Account Deactivation</p>
-                          <p className="text-rose-800 mt-1">
-                            Are you sure you want to deactivate <strong>{farmer.name}</strong>? Status will be updated to deactivated.
+                    <div className="p-4 rounded-md bg-destructive/10 border border-destructive/30 space-y-3">
+                      <div className="flex items-start gap-2.5 text-destructive">
+                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                        <div className="text-xs space-y-1">
+                          <p className="font-bold">Confirm Account Deactivation</p>
+                          <p className="text-muted-foreground">
+                            Are you sure you want to deactivate <strong className="text-foreground">{farmer.name}</strong>?
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-end space-x-3">
-                        <button
-                          type="button"
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <Button
+                          variant="ghost"
+                          size="xs"
                           onClick={() => setShowDeactivateConfirm(false)}
-                          className="px-4 py-2 bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 text-xs font-medium rounded-lg transition"
+                          disabled={deactivating}
                         >
                           Cancel
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="xs"
                           onClick={handleDeactivate}
                           disabled={deactivating}
-                          className="px-5 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-lg transition shadow-xs disabled:opacity-50"
                         >
-                          {deactivating ? "Deactivating..." : "Yes, Deactivate Farmer"}
-                        </button>
+                          {deactivating && <Loader2 className="size-3 mr-1 animate-spin" />}
+                          Yes, Deactivate Farmer
+                        </Button>
                       </div>
                     </div>
                   )}

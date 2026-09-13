@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from "react";
 import { ChatMessage } from "./types";
 import { MessageBubble } from "./MessageBubble";
+import { Wheat, Sprout, Camera, IndianRupee, ScrollText, Loader2, Sparkles } from "lucide-react";
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -13,23 +14,23 @@ interface MessageListProps {
 
 const SUGGESTIONS = [
   {
-    icon: "🌾",
-    label: "Ask for a season plan for your 2-acre plot",
+    icon: <Sprout className="size-4 text-primary" />,
+    label: "Ask for a complete 2-acre season plan",
     prompt: "Can you create a complete season plan for my 2-acre plot including crop recommendations, budget, and irrigation?",
   },
   {
-    icon: "📸",
+    icon: <Camera className="size-4 text-amber-600 dark:text-amber-400" />,
     label: "Upload a photo of an affected leaf for diagnosis",
     prompt: "I have a photo of my tomato leaf with dark spots. Can you analyze the disease and suggest organic treatment?",
   },
   {
-    icon: "💰",
-    label: "Check local mandi prices & market timing",
+    icon: <IndianRupee className="size-4 text-emerald-600 dark:text-emerald-400" />,
+    label: "Check local APMC mandi prices & sell timing",
     prompt: "What are the latest mandi prices for Onion and Soybean in Nashik district, and when is the best time to sell?",
   },
   {
-    icon: "📜",
-    label: "Check eligibility for PMFBY crop insurance & SHC",
+    icon: <ScrollText className="size-4 text-primary" />,
+    label: "Verify PMFBY insurance & SHC subsidies",
     prompt: "What government crop insurance schemes (PMFBY) and soil health card subsidies am I eligible for?",
   },
 ];
@@ -47,37 +48,36 @@ export const MessageList: React.FC<MessageListProps> = ({
   }, [messages, isThinking]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4 font-sans">
+    <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4 bg-background">
       {messages.length === 0 ? (
-        // Empty State
-        <div className="max-w-xl mx-auto py-8 sm:py-12 text-center space-y-6 animate-in fade-in duration-300">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-900/10 border border-emerald-700/20 text-emerald-800 flex items-center justify-center text-3xl shadow-inner">
-            👨‍🌾
+        /* Empty State */
+        <div className="max-w-xl mx-auto py-8 sm:py-16 text-center space-y-6">
+          <div className="size-12 mx-auto rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-2xs">
+            <Wheat className="size-6" />
           </div>
 
-          <div className="space-y-2">
-            <h2 className="text-xl sm:text-2xl font-serif font-bold text-stone-900">
-              Namaste! How can Krishi Agent help your farm today?
+          <div className="space-y-1.5">
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+              Krishi Agent Agronomic Workspace
             </h2>
-            <p className="text-xs sm:text-sm text-stone-600 max-w-md mx-auto leading-relaxed">
-              Ask any question about crops, irrigation, soil health, government schemes, or upload a photo of your leaf/crop for Instant Disease Diagnosis.
+            <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+              Ask any diagnostic question regarding crop selection, soil chemistry, water requirements,
+              or upload leaf photographs for instant disease pathology detection.
             </p>
           </div>
 
-          {/* Suggestion Pills Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-2">
+          {/* Suggestion Prompt Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left pt-2">
             {SUGGESTIONS.map((item, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => onSuggestionClick(item.prompt)}
-                className="p-3.5 bg-white hover:bg-amber-50/60 border border-stone-200 hover:border-amber-300 rounded-xl transition duration-150 shadow-2xs group focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="p-3.5 rounded-md border border-border/80 bg-card hover:border-primary/50 transition-all text-left group cursor-pointer shadow-2xs"
               >
-                <div className="flex items-start space-x-3">
-                  <span className="text-xl shrink-0 group-hover:scale-110 transition-transform">
-                    {item.icon}
-                  </span>
-                  <span className="text-xs font-medium text-stone-800 group-hover:text-amber-950 leading-snug">
+                <div className="flex items-start gap-2.5">
+                  <span className="shrink-0 mt-0.5">{item.icon}</span>
+                  <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors leading-snug">
                     {item.label}
                   </span>
                 </div>
@@ -86,26 +86,22 @@ export const MessageList: React.FC<MessageListProps> = ({
           </div>
         </div>
       ) : (
-        // Message Bubbles List
-        <div className="max-w-3xl mx-auto space-y-4">
+        /* Messages Stream */
+        <div className="max-w-3xl mx-auto space-y-3">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} onRetry={onRetryMessage} />
           ))}
 
-          {/* Thinking / Processing State */}
+          {/* Thinking / Agent Processing State */}
           {isThinking && (
-            <div className="flex items-center space-x-3 my-4">
-              <div className="w-8 h-8 rounded-full bg-stone-900 text-amber-300 border border-amber-900/50 flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                🌾
+            <div className="flex items-center gap-2.5 my-3">
+              <div className="size-7 rounded-md bg-primary border border-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-2xs">
+                <Wheat className="size-3.5" />
               </div>
-              <div className="bg-white border border-stone-200 p-3.5 rounded-2xl rounded-tl-xs shadow-2xs flex items-center space-x-2 text-xs text-stone-700 font-sans">
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
-                <span className="font-medium text-stone-600">
-                  Krishi AI is analyzing soil, weather & disease database...
+              <div className="rounded-lg border border-border/80 bg-card p-3 flex items-center gap-2 text-xs text-muted-foreground shadow-2xs">
+                <Loader2 className="size-3.5 text-primary animate-spin" />
+                <span className="font-medium text-foreground">
+                  Orchestrating agents across Soil, Weather, and Mandi feeds...
                 </span>
               </div>
             </div>

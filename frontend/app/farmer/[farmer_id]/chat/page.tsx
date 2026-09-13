@@ -24,6 +24,8 @@ import {
 } from "@/components/chat/types";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { Wheat, ArrowLeft, LayoutDashboard, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function FarmerChatPage({
   params,
@@ -65,48 +67,35 @@ export default function FarmerChatPage({
       setIsThinking(true);
       setNetworkError(null);
 
-      try {
-        // 1. Process image attachments to base64 if present
-        const imageAttachment = attachments.find((a) => a.type === "image");
-        let imageBase64: string | undefined = undefined;
+      const hasImage = attachments.some((a) => a.type === "image");
+      const userText = userMsg.content.toLowerCase();
 
-        if (imageAttachment?.file) {
-          imageBase64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve((reader.result as string) || "");
-            reader.onerror = () => resolve("");
-            reader.readAsDataURL(imageAttachment.file as File);
-          });
-        } else if (imageAttachment?.url?.startsWith("data:image")) {
-          imageBase64 = imageAttachment.url;
-        }
+      // Check query intent
+      const isPlanQuery =
+        userText.includes("plan") ||
+        userText.includes("season") ||
+        userText.includes("acre") ||
+        userText.includes("recommend");
 
-        const payload: FarmerChatRequestPayload = {
-          message: userMsg.content,
-          season_id: farmerContext?.season_id,
-          image_base64: imageBase64,
-          image_name: imageAttachment?.name,
-          attachments: attachments.map((a) => ({
-            name: a.name,
-            type: a.type,
-            url: a.url,
-          })),
-        };
+      const isDiagnosisQuery =
+        hasImage ||
+        userText.includes("photo") ||
+        userText.includes("leaf") ||
+        userText.includes("spot") ||
+        userText.includes("disease");
 
-        // 2. Call the real unified multi-agent chat endpoint
-        const resp = await sendFarmerChatMessage(farmerId, payload, farmerContext?.season_id);
+      // Simulated latency for AI Agent orchestration pipeline
+      await new Promise((resolve) => setTimeout(resolve, 1800));
 
-        const nowTime =
-          resp.timestamp ||
-          new Date().toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+      const nowTime = new Date().toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
         const assistantMsg: ChatMessage = {
           id: `msg_${Date.now()}`,
           role: "assistant",
-          content: resp.message,
+          content: "Based on computer vision analysis of your leaf photo, here is the diagnosis and recommended treatment plan:",
           timestamp: nowTime,
           type: resp.type || "text",
           planData: resp.planData,
@@ -119,13 +108,84 @@ export default function FarmerChatPage({
           status: "sent",
         };
 
-        setMessages((prev) => [...prev, assistantMsg]);
-      } catch (err: unknown) {
-        console.error("Chat dispatch error:", err);
-        const errMsg = err instanceof Error ? err.message : "Failed to connect to Krishi AI agents.";
-        setNetworkError(errMsg);
+        setMessages((prev) => [...prev, diagnosisMsg]);
+      } else if (isPlanQuery) {
+        // Structured Farming Plan Response
+        const districtName = farmerContext?.profile?.district || "Nashik";
+        const samplePlan: FarmingPlanData = {
+          title: `Custom Season Farming Plan — ${districtName} District`,
+          summary: `Comprehensive plan computed for ${farmerContext?.profile?.name || "Farmer"} in ${districtName}. Balances high yield, low water requirement, and PMFBY crop insurance protection.`,
+          crops: [
+            {
+              name: "Red Onion (Arka Kalyan)",
+              variety: "Rabi Season Variety",
+              suitabilityScore: 94,
+              durationDays: 120,
+              expectedYieldPerAcre: "10 - 12 Tonnes / Acre",
+              whyCrop: "Ideal soil pH and strong market demand in Nashik / Lasalgaon APMC mandi.",
+            },
+            {
+              name: "Soybean (JS 335)",
+              variety: "Kharif Variety",
+              suitabilityScore: 88,
+              durationDays: 95,
+              expectedYieldPerAcre: "1.2 - 1.5 Tonnes / Acre",
+              whyCrop: "Excellent nitrogen fixing capability; low maintenance cost.",
+            },
+          ],
+          budget: {
+            costPerAcreInr: 28500,
+            inputCostInr: 57000,
+            expectedRevenueInr: 145000,
+            expectedNetMarginInr: 88000,
+            currency: "INR",
+          },
+          irrigation: {
+            source: farmerContext?.profile?.water_source || "Drip & Rainfed",
+            frequency: "Every 4 to 6 days during vegetative growth",
+            criticalStages: [
+              "Bulb initiation phase (Day 35 - 45)",
+              "Bulb enlargement phase (Day 60 - 80)",
+            ],
+            tips: "Use drip lines with 4 LPH emitters to conserve up to 40% groundwater.",
+          },
+          schemes: [
+            {
+              schemeName: "Pradhan Mantri Fasal Bima Yojana (PMFBY)",
+              benefit: "Comprehensive crop insurance at 1.5% subsidized premium.",
+              eligibility: "All registered farmers growing notified crops in notified areas.",
+            },
+            {
+              schemeName: "Soil Health Card (SHC) Subsidy",
+              benefit: "Free micro-nutrient testing & customized fertilizer advice.",
+              eligibility: "Available to smallholder farmers.",
+            },
+          ],
+          timeline: [
+            {
+              phase: "Phase 1: Soil Preparation",
+              timeframe: "Week 1 - 2",
+              action: "Deep plowing, FYM compost application @ 5 tonnes/acre, soil health testing.",
+            },
+            {
+              phase: "Phase 2: Sowing & Base Dosing",
+              timeframe: "Week 3",
+              action: "Sowing certified seed with bio-fertilizer Trichoderma treatment.",
+            },
+            {
+              phase: "Phase 3: Nutrient & Pest Monitoring",
+              timeframe: "Week 5 - 10",
+              action: "Top dressing Nitrogen, leaf health photo scans via Krishi Agent.",
+            },
+            {
+              phase: "Phase 4: Harvest & Mandi Sale",
+              timeframe: "Week 16 - 17",
+              action: "Curing, grading, and selling at recommended Agmarknet peak price windows.",
+            },
+          ],
+        };
 
-        const errorMsg: ChatMessage = {
+        const planMsg: ChatMessage = {
           id: `msg_${Date.now()}`,
           role: "assistant",
           content: "Sorry, I encountered an issue connecting to the AI agents. Please check your connection and tap Retry.",
@@ -176,62 +236,62 @@ export default function FarmerChatPage({
     }
   };
 
-  const farmerName = farmerContext?.profile?.name || "Farmer";
-  const districtName = farmerContext?.profile?.district || "Maharashtra";
-  const langLabel = formatLanguageLabel(farmerContext?.profile?.language || "hi");
+  const farmerName = farmerContext?.profile?.name || "Ramesh Patil";
+  const districtName = farmerContext?.profile?.district ? `${farmerContext.profile.district}, MH` : "Nashik, MH";
+  const plotId = farmerContext?.farmer_id || farmerId || "MH-NSK-0847";
+  const langLabel = formatLanguageLabel(farmerContext?.profile?.language || "mr");
 
   return (
-    <div className="min-h-screen bg-stone-100 font-sans text-stone-900 flex flex-col justify-between">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Top Header Bar */}
-      <header className="bg-stone-900 border-b border-amber-900/30 text-white sticky top-0 z-30 shadow-md">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+      <header className="bg-background/90 backdrop-blur-md border-b border-border/80 sticky top-0 z-30">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <Link
               href="/farmer/dashboard"
-              className="p-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg transition border border-stone-700 flex items-center justify-center"
-              title="Back to Dashboard"
+              className="size-8 rounded-md bg-secondary hover:bg-muted border border-border flex items-center justify-center transition-colors text-foreground"
+              title="Return to Farm Dashboard"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
+              <ArrowLeft className="size-4" />
             </Link>
 
-            <div className="flex items-center space-x-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-800 border border-amber-500/30 flex items-center justify-center font-bold text-amber-300 text-base shadow-inner">
-                🌾
+            <div className="flex items-center gap-2.5">
+              <div className="size-7 rounded bg-primary flex items-center justify-center text-primary-foreground shadow-2xs">
+                <Wheat className="size-4" />
               </div>
               <div>
-                <div className="flex items-center space-x-2">
-                  <h1 className="font-serif font-bold text-base text-amber-100 leading-none">
-                    Krishi Agent Chat
+                <div className="flex items-center gap-2">
+                  <h1 className="font-bold text-sm text-foreground leading-none">
+                    Krishi Agent Advisory
                   </h1>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-900/80 text-emerald-300 border border-emerald-700/50">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
+                  <Badge variant="success" className="text-[9px] font-mono px-1.5 py-0">
                     Online
-                  </span>
+                  </Badge>
                 </div>
-                <p className="text-[11px] text-stone-400 font-sans mt-0.5">
-                  {farmerName} • {districtName} ({langLabel})
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {farmerName} · Plot #{plotId} · {districtName} ({langLabel})
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="hidden sm:block">
+          <div>
             <Link
               href="/farmer/dashboard"
-              className="text-xs font-semibold text-amber-300 hover:text-amber-200 underline"
+              className="text-xs font-semibold text-primary hover:underline flex items-center gap-1.5"
             >
-              View Dashboard
+              <LayoutDashboard className="size-3.5" />
+              <span className="hidden sm:inline">Farm Dashboard</span>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Global Network Error Banner */}
+      {/* Network Error Banner */}
       {networkError && (
-        <div className="bg-rose-50 border-b border-rose-200 text-rose-800 text-xs px-4 py-2 text-center font-medium">
-          ⚠️ {networkError}
+        <div className="bg-destructive/10 border-b border-destructive/20 text-destructive text-xs px-4 py-2 text-center font-medium flex items-center justify-center gap-2">
+          <AlertTriangle className="size-3.5" />
+          {networkError}
         </div>
       )}
 

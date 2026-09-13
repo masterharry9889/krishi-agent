@@ -2,6 +2,17 @@
 
 import React from "react";
 import { DiseaseDiagnosisData } from "./types";
+import {
+  Activity,
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  FlaskConical,
+  Leaf,
+  Search,
+  ShieldAlert,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface DiagnosisCardProps {
   diagnosis: DiseaseDiagnosisData;
@@ -11,111 +22,104 @@ export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis }) => {
   const isHighConfidence = diagnosis.confidencePct >= 85;
 
   return (
-    <div className="bg-white border border-stone-300 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4 my-2 max-w-xl w-full">
-      {/* Header Badge */}
-      <div className="bg-rose-950 text-white p-3.5 rounded-xl flex items-center justify-between shadow-xs">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-lg bg-rose-500/20 border border-rose-400/30 flex items-center justify-center text-rose-300 font-bold text-lg shrink-0">
-            🔍
+    <div className="rounded-lg border border-border/80 bg-card overflow-hidden my-2 max-w-xl w-full shadow-2xs">
+      {/* Header Banner */}
+      <div className="bg-secondary/60 border-b border-border/60 p-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="size-8 rounded-md bg-destructive/10 border border-destructive/20 flex items-center justify-center shrink-0">
+            <Search className="size-4 text-destructive" />
           </div>
-          <div>
-            <h3 className="font-serif font-bold text-base text-rose-100 leading-snug">
+          <div className="min-w-0">
+            <h3 className="font-bold text-sm text-foreground truncate">
               {diagnosis.diseaseName}
             </h3>
-            <p className="text-xs text-rose-300/90 font-sans">
-              Crop: <strong className="text-white">{diagnosis.affectedCrop}</strong>
+            <p className="text-xs text-muted-foreground truncate">
+              Host Crop: <span className="font-medium text-foreground">{diagnosis.affectedCrop}</span>
             </p>
           </div>
         </div>
 
-        <div className="text-right">
-          <span
-            className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-full border ${
-              isHighConfidence
-                ? "bg-emerald-950 text-emerald-300 border-emerald-500/40"
-                : "bg-amber-950 text-amber-300 border-amber-500/40"
-            }`}
-          >
-            {diagnosis.confidencePct}% Match
-          </span>
-        </div>
+        <Badge
+          variant={isHighConfidence ? "destructive" : "warning"}
+          className="text-[10px] font-mono shrink-0"
+        >
+          {diagnosis.confidencePct}% Match Confidence
+        </Badge>
       </div>
 
-      {/* Matched Symptoms */}
-      {diagnosis.symptomsMatched && diagnosis.symptomsMatched.length > 0 && (
-        <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 text-xs text-stone-800 space-y-1.5">
-          <span className="font-bold text-stone-900 uppercase tracking-wider text-[10px] block">
-            Matched Symptoms from Photo:
-          </span>
-          <ul className="list-disc list-inside space-y-0.5 text-stone-700">
-            {diagnosis.symptomsMatched.map((symptom, idx) => (
-              <li key={idx}>{symptom}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Treatment Plan */}
-      <div className="space-y-3 pt-1">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-stone-900 flex items-center space-x-1.5">
-          <span>🩺</span>
-          <span>Recommended Treatment Plan</span>
-        </h4>
-
-        {diagnosis.treatment.summary && (
-          <p className="text-xs text-stone-700 leading-relaxed font-sans">
-            {diagnosis.treatment.summary}
-          </p>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          {/* Organic Control */}
-          {diagnosis.treatment.organicControl && (
-            <div className="bg-emerald-50/80 p-3 rounded-xl border border-emerald-200 space-y-1">
-              <span className="font-bold text-emerald-900 text-[11px] block flex items-center space-x-1">
-                <span>🍃</span>
-                <span>Organic Control</span>
-              </span>
-              <p className="text-emerald-950 text-[11px] leading-relaxed">
-                {diagnosis.treatment.organicControl}
-              </p>
-            </div>
-          )}
-
-          {/* Chemical Control */}
-          {diagnosis.treatment.chemicalControl && (
-            <div className="bg-amber-50/80 p-3 rounded-xl border border-amber-200 space-y-1">
-              <span className="font-bold text-amber-900 text-[11px] block flex items-center space-x-1">
-                <span>🧪</span>
-                <span>Chemical Control</span>
-              </span>
-              <p className="text-amber-950 text-[11px] leading-relaxed">
-                {diagnosis.treatment.chemicalControl}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {diagnosis.treatment.preventativeSteps && (
-          <div className="bg-stone-50 p-2.5 rounded-lg border border-stone-200 text-xs text-stone-700">
-            <strong>Prevention:</strong> {diagnosis.treatment.preventativeSteps}
+      <div className="p-4 space-y-4 text-xs">
+        {/* Matched Symptoms */}
+        {diagnosis.symptomsMatched && diagnosis.symptomsMatched.length > 0 && (
+          <div className="p-3 rounded-md bg-secondary/40 border border-border/60 space-y-1.5">
+            <span className="font-mono text-[10px] uppercase font-semibold text-foreground tracking-wider flex items-center gap-1.5">
+              <CheckCircle2 className="size-3.5 text-primary" />
+              Verified Visual Symptoms
+            </span>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground leading-relaxed pl-1">
+              {diagnosis.symptomsMatched.map((symptom, idx) => (
+                <li key={idx}>{symptom}</li>
+              ))}
+            </ul>
           </div>
         )}
-      </div>
 
-      {/* Source & Citation */}
-      {diagnosis.citationSource && (
-        <div className="text-[10px] text-stone-500 font-mono pt-1">
-          Source: {diagnosis.citationSource}
+        {/* Treatment Protocol */}
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-1.5 font-semibold text-foreground">
+            <ShieldAlert className="size-3.5 text-primary" />
+            <span>Recommended Agronomic Protocol</span>
+          </div>
+
+          {diagnosis.treatment.summary && (
+            <p className="text-muted-foreground leading-relaxed">
+              {diagnosis.treatment.summary}
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            {/* Organic Control */}
+            {diagnosis.treatment.organicControl && (
+              <div className="p-3 rounded-md bg-secondary/30 border border-border/60 space-y-1">
+                <span className="font-semibold text-primary text-[11px] flex items-center gap-1.5">
+                  <Leaf className="size-3.5" />
+                  Organic & Bio-Control
+                </span>
+                <p className="text-foreground leading-relaxed">
+                  {diagnosis.treatment.organicControl}
+                </p>
+              </div>
+            )}
+
+            {/* Chemical Control */}
+            {diagnosis.treatment.chemicalControl && (
+              <div className="p-3 rounded-md bg-secondary/30 border border-border/60 space-y-1">
+                <span className="font-semibold text-amber-700 dark:text-amber-400 text-[11px] flex items-center gap-1.5">
+                  <FlaskConical className="size-3.5" />
+                  Targeted Chemical Formulation
+                </span>
+                <p className="text-foreground leading-relaxed">
+                  {diagnosis.treatment.chemicalControl}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Preventative Steps */}
+          {diagnosis.treatment.preventativeSteps && (
+            <div className="p-2.5 rounded-md bg-secondary/20 border border-border/40 text-muted-foreground leading-relaxed">
+              <strong className="text-foreground font-medium">Preventative cultural practice: </strong>
+              {diagnosis.treatment.preventativeSteps}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Visible Mandatory Disclaimer */}
-      <div className="bg-amber-100/70 border border-amber-300 text-amber-900 text-xs rounded-xl p-3 flex items-start space-x-2">
-        <span className="text-base font-bold shrink-0">⚠️</span>
-        <span className="text-[11px] font-medium leading-snug">
-          <strong>AI-assisted diagnosis:</strong> Confirm with your local Krishi Vigyan Kendra (KVK) or agriculture officer before applying treatments.
-        </span>
+        {/* Citation Source */}
+        {diagnosis.citationSource && (
+          <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
+            <BookOpen className="size-3 shrink-0" />
+            <span className="truncate">Ref: {diagnosis.citationSource}</span>
+          </div>
+        )}
       </div>
     </div>
   );

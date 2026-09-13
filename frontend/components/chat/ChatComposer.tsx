@@ -2,6 +2,8 @@
 
 import React, { useState, useRef } from "react";
 import { Attachment } from "./types";
+import { Paperclip, Send, X, AlertTriangle, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ChatComposerProps {
   onSendMessage: (text: string, attachments: Attachment[]) => void;
@@ -55,7 +57,7 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
         ALLOWED_TYPES.includes(file.type);
 
       if (!isImage && !isCsvOrExcel) {
-        setUploadError(`Unsupported file format. Please upload photos (JPEG/PNG) or CSV/Excel files.`);
+        setUploadError(`Unsupported format. Please upload photos (JPEG/PNG) or CSV/Excel files.`);
         continue;
       }
 
@@ -70,7 +72,6 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
     }
 
     setAttachments((prev) => [...prev, ...newAttachments]);
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -90,7 +91,6 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
     setAttachments([]);
     setUploadError(null);
 
-    // Reset height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -105,50 +105,49 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
-    // Auto-expand textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 130)}px`;
     }
   };
 
   const canSend = (Boolean(text.trim()) || attachments.length > 0) && !disabled;
 
   return (
-    <div className="bg-white border-t border-stone-200 px-4 sm:px-6 py-3 sticky bottom-0 z-20 shadow-lg">
+    <div className="bg-background border-t border-border/80 px-4 sm:px-6 py-3 sticky bottom-0 z-20">
       <div className="max-w-3xl mx-auto space-y-2">
         {/* Attachment Thumbnails Preview Bar */}
         {attachments.length > 0 && (
-          <div className="flex items-center space-x-2.5 overflow-x-auto py-1 px-1">
+          <div className="flex items-center gap-2 overflow-x-auto py-1">
             {attachments.map((att) => (
               <div
                 key={att.id}
-                className="relative group shrink-0 rounded-xl overflow-hidden border border-amber-300 bg-amber-50 p-1 shadow-2xs flex items-center space-x-2"
+                className="relative group shrink-0 rounded-md overflow-hidden border border-border bg-secondary/50 p-1 flex items-center gap-2"
               >
                 {att.type === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={att.url} alt={att.name} className="w-12 h-12 object-cover rounded-lg" />
+                  <img src={att.url} alt={att.name} className="w-10 h-10 object-cover rounded" />
                 ) : (
-                  <div className="w-12 h-12 rounded-lg bg-stone-200 flex items-center justify-center text-lg">
-                    📊
+                  <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                    <BarChart3 className="size-4 text-muted-foreground" />
                   </div>
                 )}
-                <div className="pr-6 max-w-[120px]">
-                  <span className="text-[11px] font-medium text-stone-800 truncate block">
+                <div className="pr-5 max-w-[110px]">
+                  <span className="text-[11px] font-medium text-foreground truncate block">
                     {att.name}
                   </span>
-                  <span className="text-[9px] text-amber-800 font-bold uppercase">
-                    Ready to attach
+                  <span className="text-[9px] text-primary font-mono font-semibold uppercase">
+                    Attached
                   </span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleRemoveAttachment(att.id)}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-stone-900/80 text-white flex items-center justify-center text-xs hover:bg-rose-600 transition"
+                  className="absolute top-1 right-1 size-4 rounded-full bg-foreground/80 text-background flex items-center justify-center hover:bg-destructive transition cursor-pointer"
                   title="Remove file"
                 >
-                  ✕
+                  <X className="size-2.5" />
                 </button>
               </div>
             ))}
@@ -157,23 +156,22 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
 
         {/* Upload Error Banner */}
         {uploadError && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl p-2.5 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-rose-600">⚠️</span>
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-md p-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-3.5 shrink-0" />
               <span>{uploadError}</span>
             </div>
             <button
               onClick={() => setUploadError(null)}
-              className="text-stone-400 hover:text-stone-600 font-bold text-xs"
+              className="text-muted-foreground hover:text-foreground font-bold text-xs cursor-pointer"
             >
-              ✕
+              <X className="size-3.5" />
             </button>
           </div>
         )}
 
         {/* Composer Form Controls */}
-        <div className="flex items-end space-x-2">
-          {/* File Upload Button */}
+        <div className="flex items-end gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -188,16 +186,13 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
-            className="p-3 text-stone-600 hover:text-amber-800 bg-stone-100 hover:bg-amber-50 border border-stone-300 rounded-xl transition shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
-            title="Attach photo or farm data file (image/*, .csv, .xlsx)"
+            className="p-2 text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary border border-border/80 rounded-md transition shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50 h-9 w-9 flex items-center justify-center cursor-pointer"
+            title="Attach leaf photograph or farm data file"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-            </svg>
+            <Paperclip className="size-4" />
           </button>
 
-          {/* Text Area Input */}
-          <div className="flex-1 min-h-[44px]">
+          <div className="flex-1 min-h-[36px]">
             <label htmlFor="farmer-chat-input" className="sr-only">
               Type your farming question
             </label>
@@ -209,26 +204,23 @@ export const ChatComposer: React.FC<ChatComposerProps> = ({
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
               disabled={disabled}
-              placeholder="Ask about crops, soil, pests, market prices, or upload leaf photo..."
-              className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition resize-none max-h-36 leading-snug"
+              placeholder="Ask about crops, soil nutrients, pests, mandi timing, or leaf diagnosis..."
+              className="w-full px-3 py-2 bg-background border border-input rounded-md text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/70 outline-none focus-visible:ring-2 focus-visible:ring-ring/30 transition resize-none max-h-32 leading-snug"
             />
           </div>
 
-          {/* Send Button */}
           <button
             type="button"
             onClick={handleSend}
             disabled={!canSend}
-            className={`p-3 rounded-xl transition duration-150 shrink-0 font-bold min-w-[44px] min-h-[44px] flex items-center justify-center ${
+            className={`p-2 rounded-md transition shrink-0 h-9 w-9 flex items-center justify-center cursor-pointer shadow-2xs ${
               canSend
-                ? "bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
-                : "bg-stone-200 text-stone-400 cursor-not-allowed"
+                ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                : "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
             }`}
             title="Send Message"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
+            <Send className="size-4" />
           </button>
         </div>
       </div>

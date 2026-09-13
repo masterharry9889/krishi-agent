@@ -1,207 +1,159 @@
 "use client";
+
 import { useEffect, useRef } from "react";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import {
+  ArrowDown,
+  ArrowRight,
+  Bot,
+  BrainCircuit,
+  CheckCircle2,
+  Clock,
+  Coins,
+  Cpu,
+  Database,
+  Droplets,
+  Layers,
+  Network,
+  RotateCcw,
+  Shield,
+  Sprout,
+  TrendingUp,
+  UserCheck,
+  Wheat,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
-// Pipeline phases directly from build_graph.py edges
-const PHASES = [
-  {
-    id: "onboarding",
-    label: "Onboarding",
-    agent: "FarmerInterfaceAgent",
-    output: "profile: location, land_size, water_source, past_crops, budget, language",
-    icon: "👤",
-    color: "#2D5A3D",
-    phase: "Phase 1",
-  },
-  {
-    id: "parallel",
-    label: "Diagnostics",
-    agent: "SoilAgent ∥ WeatherAgent ∥ MarketIntelligenceAgent",
-    output: "soil_report · weather_outlook · demand_supply gap (Agmarknet)",
-    icon: "⟡",
-    color: "#C8893A",
-    phase: "Phase 2 — parallel fan-out",
-    isParallel: true,
-  },
-  {
-    id: "crop_recommendation",
-    label: "Crop Recommendation",
-    agent: "CropRecommendationAgent",
-    output: "crop_shortlist: ranked crops w/ agronomic_fit + market_opportunity scores",
-    icon: "🌱",
-    color: "#2D5A3D",
-    phase: "Phase 3 — fan-in",
-  },
-  {
-    id: "planning",
-    label: "Resource & Budget",
-    agent: "ResourceIrrigationAgent → BudgetEstimatorAgent → InputVerificationAgent",
-    output: "input_plan · budget_estimate · verified_dealers",
-    icon: "📋",
-    color: "#7A4F2D",
-    phase: "Phase 4",
-  },
-  {
-    id: "scheme_insurance",
-    label: "Scheme & Credit",
-    agent: "SchemeInsuranceAgent → CreditAgent (if shortfall)",
-    output: "insurance_status (PMFBY) · credit_offers (Rural/Co-op Bank)",
-    icon: "🏦",
-    color: "#2D5A3D",
-    phase: "Phase 5 — conditional edge",
-    isConditional: true,
-  },
-  {
-    id: "monitoring",
-    label: "Season Monitoring",
-    agent: "CropMonitoringAgent → AdvisoryAgent",
-    output: "monitoring_alerts[] · advisory_log[] — append-only, event-driven via workers",
-    icon: "📡",
-    color: "#C8893A",
-    phase: "Phase 6 — background workers",
-  },
-  {
-    id: "harvest",
-    label: "Harvest Decision",
-    agent: "StorageSellTimingAgent",
-    output: "sell_recommendation: sell_now ∨ hold — shelf life, price trend, cold storage options",
-    icon: "🌾",
-    color: "#2D5A3D",
-    phase: "Phase 7 — price trigger re-entry",
-  },
-  {
-    id: "market_linkage",
-    label: "Market Linkage",
-    agent: "DirectMarketLinkageAgent",
-    output: "sale_record — e-NAM, local FPO, verified buyers",
-    icon: "🏪",
-    color: "#7A4F2D",
-    phase: "Phase 8",
-  },
-  {
-    id: "feedback",
-    label: "Feedback Loop",
-    agent: "FeedbackAgent",
-    output: "season_feedback → written back into next season's crop_recommendation context",
-    icon: "↺",
-    color: "#2D5A3D",
-    phase: "Phase 8 — season memory",
-  },
-];
-
-// Parallel branch nodes
-const PARALLEL_NODES = [
-  { id: "soil", label: "Soil Agent", api: "Soil Health Card (SHC) API", color: "#7A4F2D" },
-  { id: "weather", label: "Weather Agent", api: "IMD 7-day forecast", color: "#3D7A52" },
-  { id: "market_intel", label: "Market Intel Agent", api: "Agmarknet mandi API", color: "#C8893A" },
-];
-
-function ParallelBranch() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        width: "100%",
-        position: "relative",
-        padding: "1rem 0",
-      }}
-    >
-      {/* Branching header */}
-      <div
-        style={{
-          background: "rgba(200,137,58,0.1)",
-          border: "1.5px solid rgba(200,137,58,0.35)",
-          borderRadius: "8px",
-          padding: "0.35rem 0.875rem",
-          fontSize: "0.6875rem",
-          fontFamily: "var(--font-jetbrains-mono), monospace",
-          color: "var(--gold-700)",
-          letterSpacing: "0.06em",
-          marginBottom: "1rem",
-        }}
-      >
-        add_edge([&quot;soil&quot;, &quot;weather&quot;, &quot;market_intel&quot;], &quot;crop_recommendation&quot;)
-      </div>
-
-      {/* Three parallel cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: "0.75rem",
-          width: "100%",
-        }}
-        className="parallel-grid"
-      >
-        {PARALLEL_NODES.map((node) => (
-          <div
-            key={node.id}
-            className="pipeline-node"
-            style={{
-              background: "rgba(255,255,255,0.7)",
-              backdropFilter: "blur(8px)",
-              border: `1.5px solid ${node.color}30`,
-              borderRadius: "10px",
-              padding: "1rem",
-              position: "relative",
-            }}
-          >
-            <div
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                background: node.color,
-                marginBottom: "0.5rem",
-              }}
-            />
-            <div
-              style={{
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                color: "var(--ink)",
-                marginBottom: "0.25rem",
-              }}
-            >
-              {node.label}
-            </div>
-            <div
-              style={{
-                fontSize: "0.6875rem",
-                fontFamily: "var(--font-jetbrains-mono), monospace",
-                color: "var(--ink-muted)",
-                lineHeight: 1.4,
-              }}
-            >
-              {node.api}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+interface PhaseItem {
+  step: string;
+  label: string;
+  agent: string;
+  desc: string;
+  output: string;
+  icon: any;
+  tag: string;
+  isParallel?: boolean;
+  image?: string;
+  imageAlt?: string;
+  disclaimer?: string;
 }
 
+const PHASES: PhaseItem[] = [
+  {
+    step: "01",
+    label: "Farmer Profiling & Baseline",
+    agent: "FarmerInterfaceAgent",
+    desc: "Ingests location, total acreage, soil class, past crop history, irrigation source, and native dialect. Example: Ramesh Patil, Nashik dist., 4.2 acres, borewell irrigation, last 3 seasons — soybean → wheat → chickpea.",
+    output: "FarmerProfile { lat: 20.0063, lon: 73.7630, land_acres: 4.2, water_type: 'borewell', language: 'mr' }",
+    icon: UserCheck,
+    tag: "Onboarding Node",
+    image: "/images/farmer-phone.jpg",
+    imageAlt: "Indian farmer using smartphone in field for baseline profile registration",
+  },
+  {
+    step: "02",
+    label: "Multi-Source Parallel Diagnostics",
+    agent: "SoilAgent ∥ WeatherAgent ∥ MarketIntelligenceAgent",
+    desc: "Concurrent fan-out execution. Queries Soil Health Card API for NPK, IMD for precipitation outlook, and Agmarknet for mandi spreads. Live example: N 284 kg/ha, P 18.2 kg/ha, K 312 kg/ha · pH 6.8 · 7-day rainfall forecast: 42mm.",
+    output: "SoilReport { N: 284, P: 18.2, K: 312, pH: 6.8 } + WeatherOutlook { precip_7d: 42mm } + MandiSpread[3]",
+    icon: Network,
+    tag: "Parallel Fan-Out",
+    isParallel: true,
+    image: "/images/stage-diagnostics.jpg",
+    imageAlt: "Agro-meteorological weather station and soil sensor measuring field parameters",
+  },
+  {
+    step: "03",
+    label: "Agronomic & Economic Crop Selection",
+    agent: "CropRecommendationAgent",
+    desc: "Cross-analyzes agronomic feasibility against projected mandi gross margins. Shortlists top 3 ranked crops with risk coefficients. Current ranking: #1 Soybean JS-9560 (87% fit, ₹19,400/acre margin), #2 Tur Dal (79%), #3 Maize (71%).",
+    output: "CropShortlist { ranked: ['Soybean JS-9560', 'Tur Dal', 'Maize'], suitability: [0.87, 0.79, 0.71] }",
+    icon: Sprout,
+    tag: "Fan-In Synthesis",
+    image: "/images/stage-crop-selection.jpg",
+    imageAlt: "Agronomist inspecting diversified soybean and chickpea crops in rural field",
+  },
+  {
+    step: "04",
+    label: "Resource Allocation & Input Costing",
+    agent: "ResourceIrrigationAgent → BudgetEstimatorAgent → InputVerificationAgent",
+    desc: "Calculates precise water budget, fertilizer requirements, and authentic seed/fertilizer dealer costs. Computed: 380mm seasonal water requirement, DAP 50kg + Urea 75kg, total input cost ₹8,240/acre from 2 verified dealers within 12km.",
+    output: "InputSchedule { water_mm: 380, DAP_kg: 50, Urea_kg: 75 } + WorkingCapital: ₹8,240/acre",
+    icon: Coins,
+    tag: "Chained Pipeline",
+    image: "/images/irrigation.jpg",
+    imageAlt: "Smart precision drip irrigation system hydrating crop rows efficiently",
+  },
+  {
+    step: "05",
+    label: "Risk Hedging & Liquidity Bridge",
+    agent: "SchemeInsuranceAgent → CreditAgent",
+    desc: "Verifies PMFBY insurance cutoff dates and actuarial premiums. Conditionally routes to Kisan Credit Card if deficit occurs. Nashik dist. Kharif cutoff: 15 Jul 2026, premium 2% of sum insured (₹620/acre). Deficit detected → KCC ₹24,000 pre-qualified.",
+    output: "InsuranceCoverage { premium: ₹620/acre, cutoff: '15-Jul-2026' } + KCC: ₹24,000",
+    disclaimer: "Illustrative data for demonstration — PMFBY premium, KCC limits, and cutoff dates shown are simulated sample values, not official financial advice.",
+    icon: Shield,
+    tag: "Conditional Edge",
+    image: "/images/stage-risk-insurance.jpg",
+    imageAlt: "Farmer and rural banking officer reviewing PMFBY crop insurance and credit documentation",
+  },
+  {
+    step: "06",
+    label: "In-Season Vegetative Monitoring",
+    agent: "CropMonitoringAgent → AdvisoryAgent",
+    desc: "Periodic Sentinel-2 NDVI telemetry checks and disease vision scans. Generates proactive micro-climate advisories. Latest reading: NDVI 0.74 (healthy), +0.04 from last pass. Yellow mosaic risk flagged at southeast plot boundary.",
+    output: "TelemetryLog[12] + ActionableNudges[2] { 'Yellow Mosaic Alert', 'Zinc Deficiency' }",
+    icon: Cpu,
+    tag: "Event-Driven Daemon",
+    image: "/images/satellite-ndvi.jpg",
+    imageAlt: "Sentinel-2 multi-spectral NDVI satellite false-color imagery of farm vegetation",
+  },
+  {
+    step: "07",
+    label: "Harvest Window & Sell-Timing Optimization",
+    agent: "StorageSellTimingAgent",
+    desc: "Monitors commodity price curves vs. certified cold storage rental fees to issue sell-now or hold recommendations. Current: Soybean ₹4,860/qtl at Latur APMC, 14-day projected ₹5,000/qtl. Storage cost ₹28/qtl/mo → net upside ₹112/qtl. HOLD.",
+    output: "SellRecommendation { decision: 'HOLD', target_mandi: 'Latur APMC', upside: ₹112/qtl }",
+    icon: TrendingUp,
+    tag: "Decision Gate",
+    image: "/images/stage-storage-timing.jpg",
+    imageAlt: "Agricultural commodity storage warehouse preserving crop quality before market sale",
+  },
+  {
+    step: "08",
+    label: "Direct Market Linkage & Settlement",
+    agent: "DirectMarketLinkageAgent",
+    desc: "Matches harvest volume with local FPOs and verified e-NAM institutional buyers to eliminate middleman commission. Matched: 18.5 quintals to Nashik FPO Collective at ₹5,020/qtl, 0% broker levy, pickup from Sinnar logistics hub.",
+    output: "SaleContract { buyer: 'Nashik FPO', price: ₹5,020/qtl, hub: 'Sinnar' }",
+    icon: Wheat,
+    tag: "Settlement Node",
+    image: "/images/mandi-market.jpg",
+    imageAlt: "Bustling agricultural APMC mandi wholesale produce market",
+  },
+  {
+    step: "09",
+    label: "Autonomous Feedback & Memory Propagation",
+    agent: "FeedbackAgent",
+    desc: "Logs actual yield and realization against pipeline predictions, updating state memory for subsequent season optimization. Kharif 2025 delta: predicted 18.5 qtl/acre vs. realized 19.2 qtl/acre (+3.7%). Model recalibrated for Rabi 2025-26.",
+    output: "SeasonDeltaMemory { predicted: 18.5, realized: 19.2, delta: +3.7%, propagated: true }",
+    icon: RotateCcw,
+    tag: "State Checkpointer",
+    image: "/images/harvest-calibrate.jpg",
+    imageAlt: "Farmer inspecting realized grain yield to calibrate next season memory model",
+  },
+];
+
 export default function PipelineTimeline() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("visible");
-          }
-        });
-      },
-      { threshold: 0.2, rootMargin: "0px 0px -60px 0px" }
+      (entries) =>
+        entries.forEach((e) => e.isIntersecting && e.target.classList.add("visible")),
+      { threshold: 0.08 }
     );
-
-    const nodes = containerRef.current?.querySelectorAll(".pipeline-node, .fade-up");
-    nodes?.forEach((n, i) => {
-      (n as HTMLElement).style.transitionDelay = `${i * 0.07}s`;
-      observer.observe(n);
+    ref.current?.querySelectorAll(".fade-up, .pipeline-node").forEach((el) => {
+      observer.observe(el);
     });
     return () => observer.disconnect();
   }, []);
@@ -209,298 +161,95 @@ export default function PipelineTimeline() {
   return (
     <section
       id="pipeline"
-      ref={containerRef}
+      ref={ref}
       aria-labelledby="pipeline-heading"
-      style={{
-        background: "var(--green-900)",
-        position: "relative",
-        overflow: "hidden",
-        padding: "5rem 0 6rem",
-      }}
+      className="py-16 sm:py-24 border-b border-border/80 bg-background relative"
     >
-      {/* Background pattern */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage:
-            "radial-gradient(circle at 15% 50%, rgba(200,137,58,0.07) 0%, transparent 50%), radial-gradient(circle at 85% 20%, rgba(107,174,133,0.07) 0%, transparent 50%)",
-          pointerEvents: "none",
-        }}
-      />
-
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-          padding: "0 1.5rem",
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        {/* Section header */}
-        <div className="fade-up" style={{ marginBottom: "3.5rem" }}>
-          <div
-            style={{
-              fontSize: "0.6875rem",
-              fontFamily: "var(--font-jetbrains-mono), monospace",
-              letterSpacing: "0.12em",
-              color: "var(--gold-500)",
-              textTransform: "uppercase",
-              marginBottom: "0.75rem",
-            }}
-          >
-            15-node StateGraph · LangGraph
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
+        <div className="max-w-3xl mb-12 sm:mb-16 space-y-3">
+          <div className="fade-up inline-flex items-center gap-2">
+            <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-primary">
+              Execution Architecture
+            </span>
           </div>
           <h2
             id="pipeline-heading"
-            style={{
-              fontFamily: "var(--font-instrument-serif), Georgia, serif",
-              fontSize: "clamp(1.75rem, 4vw, 2.75rem)",
-              color: "#ffffff",
-              lineHeight: 1.2,
-              marginBottom: "0.875rem",
-            }}
+            className="fade-up delay-1 text-2xl sm:text-3xl font-bold tracking-tight text-foreground"
           >
-            One pipeline.
-            <br />
-            <span style={{ color: "var(--gold-300)", fontStyle: "italic" }}>An entire season.</span>
+            A 9-stage stateful workflow. One continuous growing season.
           </h2>
-          <p
-            style={{
-              fontSize: "0.9375rem",
-              color: "rgba(255,255,255,0.55)",
-              lineHeight: 1.7,
-              maxWidth: "52ch",
-            }}
-          >
-            Each node is an agent with its own LLM + tools. The graph persists your{" "}
-            <span
-              style={{
-                fontFamily: "var(--font-jetbrains-mono), monospace",
-                color: "var(--gold-300)",
-                fontSize: "0.875rem",
-              }}
-            >
-              FarmerState
-            </span>{" "}
-            across weeks using a Postgres checkpointer, resuming on real-world triggers.
+          <p className="fade-up delay-2 text-sm sm:text-base text-muted-foreground leading-relaxed">
+            Built as a deterministic LangGraph state machine backed by Postgres checkpointing.
+            State persists across weeks, surviving disconnections, background telemetry ticks,
+            and intermittent mobile coverage.
           </p>
         </div>
 
-        {/* Vertical timeline */}
-        <div
-          style={{
-            position: "relative",
-            paddingLeft: "2.5rem",
-          }}
-        >
-          {/* Vertical connector line */}
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: "11px",
-              top: 0,
-              bottom: 0,
-              width: "1.5px",
-              background: "linear-gradient(to bottom, var(--gold-500), var(--green-500) 50%, var(--gold-500))",
-              opacity: 0.4,
-            }}
-          />
-
-          {PHASES.map((phase, idx) => (
-            <div
-              key={phase.id}
-              style={{ marginBottom: idx < PHASES.length - 1 ? "2rem" : 0, position: "relative" }}
-            >
-              {/* Dot on timeline */}
-              <div
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  left: "-2.5rem",
-                  top: "1.25rem",
-                  width: "10px",
-                  height: "10px",
-                  borderRadius: "50%",
-                  background: phase.color,
-                  border: "2px solid rgba(255,255,255,0.2)",
-                  boxShadow: `0 0 0 3px ${phase.color}30`,
-                }}
-              />
-
-              {/* Node card */}
-              <div
-                className="pipeline-node"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  backdropFilter: "blur(12px)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderLeft: `3px solid ${phase.color}`,
-                  borderRadius: "10px",
-                  padding: "1.25rem 1.5rem",
-                  cursor: "default",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: "1rem",
-                    flexWrap: "wrap",
-                    marginBottom: "0.625rem",
-                  }}
+        {/* Step-by-Step Architecture Pipeline */}
+        <div className="space-y-8">
+          {PHASES.map((item, idx) => {
+            const Icon = item.icon;
+            const isLast = idx === PHASES.length - 1;
+            return (
+              <div key={item.step} className="pipeline-node flex items-start gap-3 sm:gap-6">
+                <div className="flex flex-col items-center w-8 sm:w-12 flex-shrink-0">
+                  <div className="size-7 sm:size-9 rounded-md bg-secondary border border-border/60 flex items-center justify-center font-mono font-bold text-[11px] sm:text-xs text-foreground">
+                    {item.step}
+                  </div>
+                  {!isLast && <div className="flex-1 w-px bg-muted mt-2 min-h-[40px]"></div>}
+                </div>
+                <motion.div
+                  className="flex-1 min-w-0 rounded-xl border border-border/80 bg-card p-4 sm:p-6 hover:shadow-xl hover:scale-[1.01] transition-all overflow-hidden"
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.1 }}
                 >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "0.625rem",
-                        fontFamily: "var(--font-jetbrains-mono), monospace",
-                        color: "rgba(255,255,255,0.38)",
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        marginBottom: "0.2rem",
-                      }}
-                    >
-                      {phase.phase}
+                  {item.image && (
+                    <div className="relative w-full aspect-video sm:h-48 rounded-lg overflow-hidden mb-4 sm:mb-5 border border-border/60">
+                      <Image
+                        src={item.image}
+                        alt={item.imageAlt || item.label}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 700px"
+                        className="object-cover"
+                        loading="lazy"
+                      />
                     </div>
-                    <h3
-                      style={{
-                        fontSize: "1rem",
-                        fontWeight: 600,
-                        color: "#fff",
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      {phase.label}
-                    </h3>
+                  )}
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="flex-shrink-0 p-1.5 sm:p-2 bg-primary/10 rounded-full">
+                      <Icon className="size-4 sm:size-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm sm:text-lg font-semibold text-foreground">
+                          {item.label}
+                        </h3>
+                        <Badge variant={item.isParallel ? "warning" : "secondary"} className="text-[10px] font-mono">
+                          {item.tag}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-2xl">
+                        {item.desc}
+                      </p>
+                      <div className="mt-3 p-2 sm:p-2.5 rounded bg-secondary/50 border border-border/60 text-[11px] sm:text-xs font-mono text-primary break-words">
+                        <span className="font-semibold text-foreground">{item.agent.split(' ')[0]}</span> → Output: {item.output}
+                      </div>
+                      {item.disclaimer && (
+                        <p className="mt-2 text-[10px] sm:text-[11px] text-muted-foreground/80 italic flex items-center gap-1.5">
+                          <span className="font-bold text-amber-600 dark:text-amber-400">*</span>
+                          {item.disclaimer}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <span
-                    aria-hidden="true"
-                    style={{ fontSize: "1.25rem", opacity: 0.8, flexShrink: 0 }}
-                  >
-                    {phase.icon}
-                  </span>
-                </div>
-
-                {/* Agent name */}
-                <div
-                  style={{
-                    fontFamily: "var(--font-jetbrains-mono), monospace",
-                    fontSize: "0.6875rem",
-                    color: phase.color === "#C8893A" ? "var(--gold-300)" : "var(--green-300)",
-                    marginBottom: "0.5rem",
-                    opacity: 0.85,
-                  }}
-                >
-                  {phase.agent}
-                </div>
-
-                {/* Output */}
-                <div
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: "rgba(255,255,255,0.5)",
-                    lineHeight: 1.5,
-                    fontStyle: "italic",
-                  }}
-                >
-                  → {phase.output}
-                </div>
-
-                {/* Parallel branch inlined */}
-                {phase.isParallel && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <ParallelBranch />
-                  </div>
-                )}
-
-                {/* Conditional badge */}
-                {phase.isConditional && (
-                  <div
-                    style={{
-                      marginTop: "0.75rem",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.375rem",
-                      background: "rgba(200,137,58,0.15)",
-                      border: "1px dashed rgba(200,137,58,0.4)",
-                      borderRadius: "4px",
-                      padding: "0.25rem 0.625rem",
-                      fontSize: "0.6875rem",
-                      fontFamily: "var(--font-jetbrains-mono), monospace",
-                      color: "var(--gold-300)",
-                    }}
-                  >
-                    <span>⋯</span>
-                    <span>needs_credit router · conditional edge</span>
-                  </div>
-                )}
+                </motion.div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* LangGraph note */}
-        <div
-          className="fade-up"
-          style={{
-            marginTop: "3rem",
-            background: "rgba(200,137,58,0.06)",
-            border: "1px solid rgba(200,137,58,0.18)",
-            borderRadius: "10px",
-            padding: "1.25rem 1.5rem",
-            display: "flex",
-            gap: "1rem",
-            alignItems: "flex-start",
-          }}
-        >
-          <div
-            style={{
-              flexShrink: 0,
-              width: "32px",
-              height: "32px",
-              borderRadius: "6px",
-              background: "rgba(200,137,58,0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "1rem",
-            }}
-          >
-            ⟳
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                color: "var(--gold-300)",
-                marginBottom: "0.25rem",
-              }}
-            >
-              Event-driven resumption
-            </div>
-            <p style={{ fontSize: "0.8125rem", color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
-              The graph doesn&apos;t run once and exit. Background workers watch NDVI imagery,
-              mandi price feeds, and PMFBY deadlines. When a threshold is crossed — a price
-              spike, a pest alert, an insurance deadline — they resume the graph thread at
-              the correct node using the Postgres checkpointer.
-            </p>
-          </div>
+            );
+          })}
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 640px) {
-          .parallel-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </section>
   );
 }

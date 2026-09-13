@@ -14,6 +14,8 @@ import { StatCard } from "@/components/admin/StatCard";
 import { FarmerFilterBar } from "@/components/admin/FarmerFilterBar";
 import { FarmerTable } from "@/components/admin/FarmerTable";
 import { FarmerDetailModal } from "@/components/admin/FarmerDetailModal";
+import { AlertTriangle, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -60,7 +62,6 @@ export default function AdminDashboardPage() {
         language: languageFilter || undefined,
       });
 
-      // Filter by status on client if needed (in case backend soft-deletes or status query is added)
       let list = resp.farmers;
       if (statusFilter) {
         list = list.filter((f) => f.status === statusFilter);
@@ -86,7 +87,6 @@ export default function AdminDashboardPage() {
   }, [skip, limit, search, districtFilter, languageFilter, statusFilter, router]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFarmersList();
   }, [fetchFarmersList]);
 
@@ -146,7 +146,6 @@ export default function AdminDashboardPage() {
     );
   };
 
-  // Compute stat summary totals from loaded/filtered list or overall count
   const registeredCount = farmers.filter((f) => f.status === "registered").length;
   const deactivatedCount = farmers.filter((f) => f.status === "deactivated").length;
   const uniqueDistrictsCount = new Set(
@@ -158,68 +157,70 @@ export default function AdminDashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-stone-100 font-sans text-stone-900 flex flex-col">
+    <div className="min-h-screen bg-background font-sans text-foreground flex flex-col">
       {/* Top Header */}
       <AdminHeader onLogout={handleLogout} />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         {/* Page Title Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold font-serif text-stone-900 tracking-tight">
-              Farmer Directory & Management
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Farmer Registry Directory
             </h1>
-            <p className="text-sm text-stone-600 mt-1">
-              View registered smallholder farmers across districts, inspect profile records, and manage account statuses.
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Manage smallholder farmer accounts, inspect active district profiles, and monitor onboarding status.
             </p>
           </div>
         </div>
 
         {/* Global Error Banner */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 text-sm rounded-xl p-4 flex items-center justify-between shadow-xs">
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-rose-600 text-base">⚠️</span>
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs sm:text-sm rounded-lg p-3.5 flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-4 shrink-0" />
               <span>{error}</span>
             </div>
-            <button
+            <Button
+              variant="outline"
+              size="xs"
               onClick={fetchFarmersList}
-              className="text-xs font-semibold underline hover:text-rose-900"
+              className="text-xs"
             >
-              Try Again
-            </button>
+              Retry
+            </Button>
           </div>
         )}
 
         {/* Summary Stat Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
-            title="Total Farmers"
+            title="Total Acreage Records"
             value={totalCount}
             icon="total"
-            subtitle="Total records in registry"
+            subtitle="Verified farmer profiles"
             loading={loading}
           />
           <StatCard
             title="Active / Registered"
             value={registeredCount}
             icon="registered"
-            subtitle="Verified registered farmers"
+            subtitle="Live status accounts"
             loading={loading}
           />
           <StatCard
             title="Deactivated"
             value={deactivatedCount}
             icon="deactivated"
-            subtitle="Soft-deleted accounts"
+            subtitle="Archived profiles"
             loading={loading}
           />
           <StatCard
             title="Districts Covered"
             value={uniqueDistrictsCount}
             icon="districts"
-            subtitle="Active coverage regions"
+            subtitle="Regional telemetry reach"
             loading={loading}
           />
         </div>

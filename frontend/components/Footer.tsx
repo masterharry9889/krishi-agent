@@ -1,151 +1,92 @@
 "use client";
-export default function Footer() {
-  const currentYear = new Date().getFullYear();
 
+import Link from "next/link";
+import { Wheat, Shield, Activity, Heart } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+export default function Footer() {
   return (
-    <footer
-      role="contentinfo"
-      style={{
-        background: "var(--soil-900)",
-        borderTop: "1px solid rgba(200,137,58,0.12)",
-        padding: "2.5rem 1.5rem",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "1fr auto",
-          gap: "2rem",
-          alignItems: "center",
-        }}
-        className="footer-grid"
-      >
-        {/* Left */}
-        <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              marginBottom: "0.5rem",
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-              <circle cx="14" cy="14" r="13" stroke="#C8893A" strokeWidth="1.5" />
-              <path d="M14 6c0 0-5 4-5 9a5 5 0 0010 0c0-5-5-9-5-9z" fill="#2D5A3D" />
-              <path d="M14 6v14" stroke="#C8893A" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-            <span
-              style={{
-                fontFamily: "var(--font-instrument-serif), Georgia, serif",
-                fontSize: "1rem",
-                color: "var(--gold-300)",
-              }}
-            >
-              Krishi Agent
-            </span>
+    <footer className="border-t border-border/80 bg-secondary/30 text-muted-foreground text-xs">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          {/* Brand Info */}
+          <div className="md:col-span-2 space-y-3">
+            <div className="flex items-center gap-2 text-foreground font-semibold text-sm">
+              <div className="size-6 rounded bg-primary flex items-center justify-center text-primary-foreground">
+                <Wheat className="size-3.5" />
+              </div>
+              <span>Krishi Agent</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-secondary text-muted-foreground border border-border">
+                Precision v2.4
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
+              A stateful multi-agent decision intelligence architecture for Indian agriculture.
+              Orchestrates official Soil Health Cards, APMC mandi arrivals, Sentinel-2 NDVI, and PMFBY
+              into deterministic LangGraph execution pipelines.
+            </p>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="size-2 rounded-full bg-emerald-500 live-pulse" />
+              <span className="text-[11px] font-mono text-foreground font-medium">
+                All 15 Agronomic Nodes Operational
+              </span>
+            </div>
           </div>
-          <p
-            style={{
-              fontSize: "0.8rem",
-              color: "rgba(255,255,255,0.3)",
-              lineHeight: 1.6,
-              maxWidth: "44ch",
-            }}
-          >
-            A LangGraph multi-agent system for Indian agriculture. Soil Health Card ·
-            Agmarknet · NDVI · PMFBY · e-NAM. Season-long, not one-shot.
-          </p>
+
+          {/* Navigation Links */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono">
+              Platform Routes
+            </h4>
+            <ul className="space-y-1.5 text-xs">
+              <li>
+                <Link href="/farmer/login" className="hover:text-foreground transition-colors">
+                  Farmer Portal Sign In
+                </Link>
+              </li>
+              <li>
+                <Link href="/farmer/dashboard" className="hover:text-foreground transition-colors">
+                  Farm Telemetry Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link href="/admin/login" className="hover:text-foreground transition-colors">
+                  Agronomist Admin Login
+                </Link>
+              </li>
+              <li>
+                <Link href="/admin" className="hover:text-foreground transition-colors">
+                  District Registry Directory
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Compliance & Integrations */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono">
+              Integrations
+            </h4>
+            <ul className="space-y-1.5 text-xs">
+              <li>Ministry of Agriculture & Farmers Welfare</li>
+              <li>Directorate of Marketing & Inspection (Agmarknet)</li>
+              <li>ISRO / Sentinel-2 Earth Observation</li>
+              <li>Small Farmers Agribusiness Consortium (e-NAM)</li>
+              <li>National Horticulture Board (NCCD)</li>
+            </ul>
+          </div>
         </div>
 
-        {/* Right: links */}
-        <nav aria-label="Footer navigation">
-          <ul
-            style={{
-              listStyle: "none",
-              display: "flex",
-              gap: "1.5rem",
-              flexWrap: "wrap",
-              justifyContent: "flex-end",
-            }}
-          >
-            {[
-              { label: "Pipeline", href: "#pipeline" },
-              { label: "Data Sources", href: "#data-sources" },
-              { label: "GitHub", href: "https://github.com", rel: "noopener noreferrer" },
-              { label: "Partners", href: "mailto:partners@krishiagent.in" },
-            ].map((l) => (
-              <li key={l.label}>
-                <a
-                  href={l.href}
-                  rel={l.rel}
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: "rgba(255,255,255,0.35)",
-                    textDecoration: "none",
-                    transition: "color 0.2s",
-                  }}
-                  onMouseEnter={(e) =>
-                    ((e.target as HTMLElement).style.color = "var(--gold-300)")
-                  }
-                  onMouseLeave={(e) =>
-                    ((e.target as HTMLElement).style.color = "rgba(255,255,255,0.35)")
-                  }
-                >
-                  {l.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="pt-6 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px]">
+          <div>
+            © {new Date().getFullYear()} Krishi Agent. Open precision agronomic infrastructure.
+          </div>
+          <div className="flex items-center gap-4">
+            <span>Server: IN-CENTRAL-1</span>
+            <span>Postgres Checkpointer Active</span>
+          </div>
+        </div>
       </div>
-
-      {/* Bottom */}
-      <div
-        style={{
-          maxWidth: "1200px",
-          margin: "1.5rem auto 0",
-          paddingTop: "1.25rem",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "0.5rem",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "0.75rem",
-            fontFamily: "var(--font-jetbrains-mono), monospace",
-            color: "rgba(255,255,255,0.2)",
-          }}
-        >
-          © {currentYear} Krishi Agent. Built for the Indian farmer.
-        </span>
-        <span
-          style={{
-            fontSize: "0.75rem",
-            fontFamily: "var(--font-jetbrains-mono), monospace",
-            color: "rgba(255,255,255,0.15)",
-          }}
-        >
-          FarmerState · LangGraph · FastAPI
-        </span>
-      </div>
-
-      <style>{`
-        @media (max-width: 640px) {
-          .footer-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .footer-grid nav ul {
-            justify-content: flex-start !important;
-          }
-        }
-      `}</style>
     </footer>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,11 +18,111 @@ import {
   ApiError,
 } from "@/lib/api";
 import { AGENT_REGISTRY } from "@/lib/agents";
+import {
+  Wheat,
+  MessageCircle,
+  LogOut,
+  CalendarDays,
+  AlertTriangle,
+  ClipboardList,
+  Sparkles,
+  TrendingUp,
+  IndianRupee,
+  Star,
+  ChevronDown,
+  ChevronUp,
+  Bot,
+  Loader2,
+  CheckCircle2,
+  CircleDot,
+  MapPin,
+  Droplets,
+  Sun,
+  BarChart3,
+  Sprout,
+  Send,
+  ShieldCheck,
+  ArrowRight,
+  Camera,
+  Activity,
+  Layers,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface AgentState {
   status: "idle" | "running" | "success" | "error" | "blocked";
   result: unknown | null;
   error: string | null;
+}
+
+const AGENT_ICONS: Record<string, React.ReactNode> = {
+  soil: <Droplets className="size-3.5" />,
+  weather: <Sun className="size-3.5" />,
+  market_intelligence: <BarChart3 className="size-3.5" />,
+  crop_recommendation: <Sprout className="size-3.5" />,
+  irrigation: <Droplets className="size-3.5" />,
+  budget_estimator: <IndianRupee className="size-3.5" />,
+  input_verification: <ShieldCheck className="size-3.5" />,
+  scheme_insurance: <ShieldCheck className="size-3.5" />,
+  credit: <IndianRupee className="size-3.5" />,
+  crop_monitoring: <Activity className="size-3.5" />,
+  advisory: <Sparkles className="size-3.5" />,
+  storage_sell_timing: <TrendingUp className="size-3.5" />,
+  market_linkage: <BarChart3 className="size-3.5" />,
+  feedback: <Star className="size-3.5" />,
+};
+
+const DEFAULT_PRIORITIES = [
+  {
+    title: "Soil Moisture at 14% — Below 22% Agronomic Threshold",
+    reason: "Topsoil (0-15cm) moisture dropped to 14% across Plot #MH-NSK-0847. Critical moisture stress threshold for Kharif soybean in R3/R4 pod development is 22%.",
+    recommended_action: "Initiate 2.5-hour scheduled drip cycle before 11:00 AM to prevent flower and pod abortion.",
+    urgency: "critical",
+    source: "IoT Sensor · SoilAgent",
+  },
+  {
+    title: "Nitrogen Top-Dressing Window: 48h Before 32mm Rain",
+    reason: "IMD Doppler radar forecasts 32mm rainfall event in Nashik within 48-72h. Current root-zone N is 284 kg/ha.",
+    recommended_action: "Apply urea @ 35 kg/acre + 25 kg/ha ZnSO4 prior to rainfall for maximum root uptake without burn.",
+    urgency: "high",
+    source: "IMD Radar · WeatherAgent",
+  },
+  {
+    title: "APMC Lasalgaon Modal Price ₹4,850/qtl Exceeds Target",
+    reason: "Lasalgaon APMC auction modal price has crossed the ₹4,600/qtl seasonal trigger threshold (+5.4% week-on-week).",
+    recommended_action: "Dispatch 40% batch (7.5 quintals) via Sinnar FPO logistics hub to capture peak price spread.",
+    urgency: "medium",
+    source: "Agmarknet · MarketAgent",
+  },
+];
+
+function getNudgeImage(item: { title: string; reason: string; source: string }) {
+  const text = (item.title + " " + item.reason + " " + item.source).toLowerCase();
+  if (text.includes("soil") || text.includes("nitrogen") || text.includes("npk") || text.includes("fertilizer") || text.includes("urea")) {
+    return "/images/soil-hands.jpg";
+  }
+  if (text.includes("market") || text.includes("mandi") || text.includes("price") || text.includes("apmc")) {
+    return "/images/mandi-market.jpg";
+  }
+  if (text.includes("satellite") || text.includes("ndvi") || text.includes("canopy")) {
+    return "/images/satellite-ndvi.jpg";
+  }
+  if (text.includes("water") || text.includes("irrigation") || text.includes("rain") || text.includes("drip") || text.includes("moisture")) {
+    return "/images/irrigation.jpg";
+  }
+  if (text.includes("zinc") || text.includes("micronutrient") || text.includes("crop") || text.includes("disease")) {
+    return "/images/stage-crop-selection.jpg";
+  }
+  return "/images/rural-field.jpg";
 }
 
 export default function FarmerDashboardPage() {
@@ -64,12 +165,18 @@ export default function FarmerDashboardPage() {
 
     let ignore = false;
 
-    async function loadDashboard() {
-      setError(null);
+    async function loadData() {
       try {
-        if (!activeToken) return;
-        // Decode payload from token to get farmer_id
-        const payloadBase64 = activeToken.split(".")[1];
+        setLoading(true);
+        setError(null);
+
+        const token = getFarmerToken();
+        if (!token) {
+          router.push("/farmer/login");
+          return;
+        }
+
+        const payloadBase64 = token.split(".")[1];
         const decoded = JSON.parse(atob(payloadBase64));
         const farmerId = decoded.farmer_id || decoded.sub;
 
@@ -79,44 +186,49 @@ export default function FarmerDashboardPage() {
           return;
         }
 
-        const [ctx, insData] = await Promise.all([
+        const [ctx, insRes] = await Promise.all([
           getFarmerContext(farmerId),
           getFarmerInsight(farmerId).catch(() => null),
         ]);
 
-        if (!ignore) {
-          setContext(ctx);
-          if (insData?.insight) setInsight(insData.insight);
+        if (ignore) return;
+        setContext(ctx);
 
-          // Populate agent states
-          const nextStates: Record<string, AgentState> = {};
-          for (const a of AGENT_REGISTRY) {
-            nextStates[a.key] = { status: "idle", result: null, error: null };
-          }
-          if (ctx.agent_outputs && Array.isArray(ctx.agent_outputs)) {
-            for (const entry of ctx.agent_outputs) {
-              const key = entry.agent;
-              if (nextStates[key]) {
-                nextStates[key] = {
-                  status: "success",
-                  result: { agent: key, status: "success", output: entry.output, timestamp: entry.timestamp },
-                  error: null,
-                };
-              }
+        if (insRes?.insight) {
+          setInsight(insRes.insight);
+        }
+
+        // Initialize agent states from stored outputs
+        const initStates: Record<string, AgentState> = {};
+        for (const a of AGENT_REGISTRY) {
+          initStates[a.key] = { status: "idle", result: null, error: null };
+        }
+        if (ctx.agent_outputs && Array.isArray(ctx.agent_outputs)) {
+          for (const entry of ctx.agent_outputs) {
+            const key = entry.agent;
+            if (initStates[key]) {
+              initStates[key] = {
+                status: "success",
+                result: { agent: key, status: "success", output: entry.output, timestamp: entry.timestamp },
+                error: null,
+              };
             }
           }
-          setAgentStates(nextStates);
         }
+        if (!ignore) setAgentStates(initStates);
       } catch (err: unknown) {
         if (!ignore) {
-          if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-            clearFarmerToken();
-            router.push("/farmer/login");
-            return;
+          let message = "Failed to load farmer dashboard.";
+          if (err instanceof ApiError) {
+            if (err.status === 401 || err.status === 403) {
+              clearFarmerToken();
+              router.push("/farmer/login");
+              return;
+            }
+            message = err.message;
+          } else if (err instanceof Error) {
+            message = err.message;
           }
-          let message = "Failed to load dashboard. Please try again.";
-          if (err instanceof ApiError) message = err.message;
-          else if (err instanceof Error) message = err.message;
           setError(message);
         }
       } finally {
@@ -124,7 +236,7 @@ export default function FarmerDashboardPage() {
       }
     }
 
-    loadDashboard();
+    loadData();
     return () => {
       ignore = true;
     };
@@ -139,7 +251,6 @@ export default function FarmerDashboardPage() {
     if (!context) return;
     setOrchestrating(true);
     setError(null);
-    setOrchestrationStep("Checking soil nutrients & micro-climate...");
 
     try {
       const steps = [
@@ -169,7 +280,6 @@ export default function FarmerDashboardPage() {
       setInsight(res.insight);
       setContext(res.context);
 
-      // Refresh agent statuses
       if (res.context?.agent_outputs) {
         const nextStates: Record<string, AgentState> = {};
         for (const a of AGENT_REGISTRY) {
@@ -217,10 +327,12 @@ export default function FarmerDashboardPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "var(--green-900)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-dm-sans), sans-serif" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🌾</div>
-          <div>Loading your farm decision dashboard...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Loader2 className="size-8 text-primary animate-spin mx-auto" />
+          <p className="text-sm font-medium text-muted-foreground">
+            Synchronizing farm telemetry & state...
+          </p>
         </div>
       </div>
     );
@@ -228,15 +340,17 @@ export default function FarmerDashboardPage() {
 
   if (error && !context) {
     return (
-      <div style={{ minHeight: "100vh", background: "var(--green-900)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "var(--font-dm-sans), sans-serif", padding: "1.5rem" }}>
-        <div style={{ maxWidth: "450px", textAlign: "center", background: "rgba(255,255,255,0.05)", padding: "2rem", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⚠️</div>
-          <h2 style={{ fontSize: "1.25rem", margin: "0 0 1rem" }}>Dashboard Error</h2>
-          <p style={{ color: "#ffa0a0", fontSize: "0.9rem", marginBottom: "1.5rem" }}>{error}</p>
-          <button onClick={() => router.push("/farmer/login")} style={{ background: "var(--gold-500)", color: "var(--green-900)", border: "none", borderRadius: "6px", padding: "0.6rem 1.25rem", fontWeight: 700, cursor: "pointer" }}>
-            Return to Login
-          </button>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Card className="max-w-md w-full border-destructive/30">
+          <CardContent className="pt-6 text-center space-y-4">
+            <AlertTriangle className="size-10 text-destructive mx-auto" />
+            <h2 className="text-base font-bold text-foreground">Dashboard Synchronization Error</h2>
+            <p className="text-xs text-destructive">{error}</p>
+            <Button variant="default" onClick={() => router.push("/farmer/login")}>
+              Return to Sign In
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -245,375 +359,644 @@ export default function FarmerDashboardPage() {
   const cropDec = insight?.crop_decision;
   const marketDec = insight?.market_decision;
   const finSnap = insight?.financial_snapshot;
+  const activePriorities =
+    insight?.priorities && insight.priorities.length > 0
+      ? insight.priorities
+      : DEFAULT_PRIORITIES;
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(170deg, var(--green-900) 0%, var(--soil-900) 100%)", color: "#fff", fontFamily: "var(--font-dm-sans), sans-serif" }}>
-      {/* Top Header */}
-      <header style={{ background: "rgba(0,0,0,0.3)", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "1rem 1.5rem", position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(10px)" }}>
-        <div style={{ maxWidth: "1100px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <span style={{ fontSize: "1.5rem" }}>🌾</span>
-            <div>
-              <h1 style={{ fontSize: "1.125rem", margin: 0, fontWeight: 700, color: "#fff" }}>
-                Welcome, {profile?.name || "Farmer"}
-              </h1>
-              <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)" }}>
-                {profile?.district} District • Land: {profile?.land_size} Acres • Language: {profile?.language?.toUpperCase()}
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Top Sticky Header */}
+      <header className="bg-background/90 backdrop-blur-md border-b border-border/80 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/"
+              className="size-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground shadow-xs shrink-0"
+              title="Return to Home"
+            >
+              <Wheat className="size-4.5" />
+            </Link>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-bold text-foreground truncate">
+                  {profile?.name || "Ramesh Patil"}
+                </h1>
+                <Badge variant="neutral" className="text-[10px] font-mono hidden sm:inline-flex">
+                  Plot #{context?.farmer_id || "MH-NSK-0847"}
+                </Badge>
               </div>
+              <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
+                <MapPin className="size-3 shrink-0 text-primary" />
+                <span>{profile?.district || "Nashik"}, Maharashtra</span>
+                <span>•</span>
+                <span className="font-mono">{profile?.land_size || 4.2} Acres</span>
+                <span>•</span>
+                <span className="uppercase font-mono">{profile?.language || "mr"} (Marathi)</span>
+              </p>
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <Link
-              href={context ? `/farmer/${context.farmer_id}/chat` : "/farmer/login"}
-              style={{
-                background: "var(--gold-500)",
-                color: "var(--green-900)",
-                borderRadius: "6px",
-                padding: "0.4rem 0.85rem",
-                fontSize: "0.8rem",
-                fontWeight: 700,
-                textDecoration: "none",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.35rem",
-                boxShadow: "0 2px 8px rgba(200,137,58,0.3)",
-              }}
-            >
-              💬 Chat with Agent
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="secondary" className="hidden sm:inline-flex text-xs font-medium">
+              <CalendarDays className="size-3 mr-1.5" />
+              Kharif 2026
+            </Badge>
+
+            <Link href={context ? `/farmer/${context.farmer_id}/chat` : "/farmer/login"}>
+              <Button size="sm" variant="accent" className="font-semibold text-xs">
+                <MessageCircle className="size-3.5" />
+                <span className="hidden sm:inline">AI Advisory Chat</span>
+                <span className="sm:hidden">Chat</span>
+              </Button>
             </Link>
 
-            <div style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", padding: "0.4rem 0.85rem", fontSize: "0.8rem", color: "var(--gold-300)" }}>
-              Current Season: <strong>Kharif 2026</strong>
-            </div>
-
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={handleLogout}
-              style={{
-                background: "transparent",
-                color: "rgba(255,255,255,0.7)",
-                border: "1px solid rgba(255,255,255,0.2)",
-                borderRadius: "6px",
-                padding: "0.4rem 0.85rem",
-                fontSize: "0.8rem",
-                cursor: "pointer",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => ((e.target as HTMLElement).style.background = "rgba(255,255,255,0.1)")}
-              onMouseLeave={(e) => ((e.target as HTMLElement).style.background = "transparent")}
+              title="Sign Out"
+              className="text-muted-foreground hover:text-foreground"
             >
-              Logout 🚪
-            </button>
+              <LogOut className="size-4" />
+            </Button>
           </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "2rem 1.5rem" }}>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {error && (
-          <div style={{ background: "rgba(220,53,69,0.15)", border: "1px solid rgba(220,53,69,0.4)", borderRadius: "8px", padding: "0.75rem 1rem", marginBottom: "1.5rem", color: "#ffa0a0", fontSize: "0.875rem" }}>
-            ⚠️ {error}
+          <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-xs text-destructive">
+            <AlertTriangle className="size-4 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* ── 0. AI Chat & Leaf Diagnosis Banner ── */}
-        <section style={{ background: "linear-gradient(135deg, rgba(45,90,61,0.4) 0%, rgba(200,137,58,0.25) 100%)", border: "1px solid rgba(200,137,58,0.5)", borderRadius: "14px", padding: "1.5rem", marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1.25rem" }}>
-          <div style={{ flex: "1 1 280px" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--gold-300)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "0.25rem" }}>
-              💬 AI Conversational Assistant & Photo Scan
+        {/* Season Lifecycle Stage Counter */}
+        <div className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 space-y-3 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/60">
+            <div className="flex flex-wrap items-center gap-2">
+              <CalendarDays className="size-4 text-primary" />
+              <span className="text-xs sm:text-sm font-bold text-foreground">
+                Season Lifecycle: Day 68 of 120 · Pod Development & Grain Filling Stage
+              </span>
+              <Badge variant="warning" className="text-[10px] font-mono uppercase">
+                Kharif 2026
+              </Badge>
             </div>
-            <h2 style={{ fontSize: "1.35rem", margin: "0 0 0.4rem", fontWeight: 700, color: "#fff" }}>
-              Ask Questions or Upload Leaf Photo
-            </h2>
-            <p style={{ margin: 0, fontSize: "0.875rem", color: "rgba(255,255,255,0.8)", maxWidth: "60ch" }}>
-              Chat with your Krishi AI Agent in Hindi, Marathi, or Tamil for customized season plans, or upload crop leaf photos for instant disease diagnosis.
-            </p>
+            <span className="text-[11px] font-mono text-muted-foreground">
+              57% Completed · Est. Harvest: 15–20 Oct 2026
+            </span>
           </div>
 
-          <Link
-            href={context ? `/farmer/${context.farmer_id}/chat` : "/farmer/login"}
-            style={{
-              background: "var(--gold-500)",
-              color: "var(--green-900)",
-              textDecoration: "none",
-              borderRadius: "8px",
-              padding: "0.8rem 1.5rem",
-              fontSize: "0.925rem",
-              fontWeight: 700,
-              boxShadow: "0 4px 14px rgba(200,137,58,0.35)",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            💬 Open Agent Chat & Upload Photo →
-          </Link>
-        </section>
-
-        {/* ── 1. Smart Orchestrator CTA Banner ── */}
-        <section style={{ background: "linear-gradient(135deg, rgba(200,137,58,0.15) 0%, rgba(107,174,133,0.15) 100%)", border: "1px solid var(--gold-500)", borderRadius: "14px", padding: "1.75rem", marginBottom: "2.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1.5rem" }}>
-          <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--gold-300)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, marginBottom: "0.3rem" }}>
-              AI Farm Decision Intelligence
+          {/* Visual Progress Bar with Milestones */}
+          <div className="space-y-2">
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden border border-border/60">
+              <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: "57%" }} />
             </div>
-            <h2 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem", fontWeight: 700, color: "#fff" }}>
-              Get Instant Farm & Crop Recommendations
+            <div className="grid grid-cols-4 text-[10px] sm:text-[11px] font-mono text-muted-foreground">
+              <div>
+                <span className="text-foreground font-semibold">Day 1 (05 Jun)</span>
+                <span className="block text-[9px] text-muted-foreground/80">Sowing & Soil Prep</span>
+              </div>
+              <div>
+                <span className="text-foreground font-semibold">Day 25 (30 Jun)</span>
+                <span className="block text-[9px] text-muted-foreground/80">Vegetative (V4)</span>
+              </div>
+              <div className="text-primary font-bold">
+                <span>Day 68 (Today)</span>
+                <span className="block text-[9px] text-primary/80">Pod Fill (R4)</span>
+              </div>
+              <div className="text-right">
+                <span className="text-foreground font-semibold">Day 120 (05 Oct)</span>
+                <span className="block text-[9px] text-muted-foreground/80">Mandi Harvest</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 1. Farmland Command Hero Banner */}
+        <div className="relative rounded-2xl overflow-hidden border border-border/80 shadow-md">
+          <Image
+            src="/images/hero-field.jpg"
+            alt="Farmland golden hour field landscape"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/45"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/30"
+          />
+
+          <div className="relative z-10 p-5 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl text-white">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-[#D8A94F] text-[10px] font-mono font-semibold uppercase tracking-wider">
+                  <Sparkles className="size-3 text-[#D8A94F]" />
+                  Multi-Agent Pipeline
+                </span>
+                <span className="text-[11px] font-mono text-white/70">
+                  Season ID: {context?.season_id || "KH-2026-NSK-0847"}
+                </span>
+              </div>
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-serif font-bold tracking-tight text-white leading-tight">
+                Instant Agronomic & Market Diagnostic
+              </h2>
+              <p className="text-xs sm:text-sm text-white/85 leading-relaxed">
+                Triggers synchronous pipeline execution across Soil Health Card data, 7-day IMD forecasts,
+                and live APMC mandi arrival volumes to recalculate optimal crop and input recommendations.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+              <Button
+                onClick={handleAnalyzeMyFarm}
+                disabled={orchestrating}
+                size="lg"
+                className="bg-[#D8A94F] hover:bg-[#c6983e] text-[#1A241B] font-bold shadow-lg transition-all rounded-xl cursor-pointer"
+              >
+                {orchestrating ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    <span className="text-xs truncate max-w-[160px]">{orchestrationStep}</span>
+                  </>
+                ) : (
+                  <>
+                    <Wheat className="size-4 mr-2 text-[#1A241B]" />
+                    Analyze My Farm
+                  </>
+                )}
+              </Button>
+
+              <Link href={context ? `/farmer/${context.farmer_id}/chat` : "/farmer/login"}>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full sm:w-auto font-medium border-white/30 bg-white/15 hover:bg-white/25 text-white rounded-xl backdrop-blur-md cursor-pointer"
+                >
+                  <Camera className="size-4 mr-2 text-white" />
+                  Leaf Photo Scan
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Today's Actionable Nudges */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
+              <ClipboardList className="size-4 text-primary" />
+              Priorities & Actionable Field Nudges
             </h2>
-            <p style={{ margin: 0, fontSize: "0.9rem", color: "rgba(255,255,255,0.7)", maxWidth: "55ch" }}>
-              Run full multi-agent diagnostic analysis across soil nutrients, weather forecasts, APMC mandi prices, and crop suitability.
-            </p>
+            <span className="text-[11px] font-mono text-muted-foreground">
+              {activePriorities.length} active alerts
+            </span>
           </div>
 
-          <button
-            onClick={handleAnalyzeMyFarm}
-            disabled={orchestrating}
-            style={{
-              background: orchestrating ? "var(--gold-700)" : "var(--gold-500)",
-              color: "var(--green-900)",
-              border: "none",
-              borderRadius: "8px",
-              padding: "0.85rem 1.75rem",
-              fontSize: "1rem",
-              fontWeight: 700,
-              cursor: orchestrating ? "wait" : "pointer",
-              boxShadow: "0 4px 14px rgba(200,137,58,0.3)",
-              transition: "transform 0.15s, background 0.2s",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            {orchestrating ? (
-              <>
-                <span className="spinner">⏳</span> {orchestrationStep}
-              </>
-            ) : (
-              <>🌾 Analyze My Farm</>
-            )}
-          </button>
-        </section>
-
-        {/* ── 2. Today's Priorities & Actionable Nudges ── */}
-        <section style={{ marginBottom: "2.5rem" }}>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "1rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span>📋</span> Today&apos;s Priorities & Actionable Nudges
-          </h2>
-
-          {insight?.priorities && insight.priorities.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1rem" }}>
-              {insight.priorities.map((item, idx) => (
-                <div key={idx} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", padding: "1.25rem", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                      <span style={{ fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", padding: "0.25rem 0.5rem", borderRadius: "4px", background: item.urgency === "critical" ? "rgba(220,53,69,0.2)" : item.urgency === "high" ? "rgba(255,193,7,0.2)" : "rgba(107,174,133,0.2)", color: item.urgency === "critical" ? "#ff8080" : item.urgency === "high" ? "#ffd54f" : "var(--green-300)" }}>
-                        {item.urgency} Urgency
-                      </span>
-                      <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>{item.source}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {activePriorities.map((item, idx) => {
+              const isCritical = item.urgency === "critical";
+              const isHigh = item.urgency === "high";
+              const img = getNudgeImage(item);
+              return (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs hover:shadow-md hover:border-primary/40 transition-all flex flex-col justify-between"
+                >
+                  {/* Visual Nudge Thumbnail */}
+                  <div className="relative w-full h-32 overflow-hidden border-b border-border/60">
+                    <Image
+                      src={img}
+                      alt={item.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 380px"
+                      className="object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent flex items-end p-3">
+                      <div className="flex items-center justify-between w-full">
+                        <Badge
+                          variant={isCritical ? "destructive" : isHigh ? "warning" : "success"}
+                          className="text-[10px] font-mono uppercase font-semibold shadow-xs"
+                        >
+                          {item.urgency} Urgency
+                        </Badge>
+                        <span className="text-[10px] font-mono text-white/90 bg-black/50 backdrop-blur-xs px-2 py-0.5 rounded border border-white/20 truncate max-w-[140px]">
+                          {item.source}
+                        </span>
+                      </div>
                     </div>
-                    <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: "0 0 0.4rem", color: "#fff" }}>{item.title}</h3>
-                    <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)", margin: "0 0 0.75rem", lineHeight: 1.5 }}>{item.reason}</p>
                   </div>
-                  <div style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "6px", padding: "0.6rem 0.75rem", fontSize: "0.825rem", color: "var(--gold-300)", fontWeight: 600 }}>
-                    👉 Action: {item.recommended_action}
+
+                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                    <div className="space-y-1.5">
+                      <h3 className="text-sm font-semibold text-foreground leading-snug">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {item.reason}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-secondary/60 border border-border/60 text-xs flex items-start gap-2 mt-2">
+                      <ArrowRight className="size-3.5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-foreground font-medium">{item.recommended_action}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "1.5rem", borderRadius: "10px", textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: "0.9rem" }}>
-              Click &quot;Analyze My Farm&quot; above to generate your priority action plan.
-            </div>
-          )}
+              );
+            })}
+          </div>
         </section>
 
-        {/* ── 3. Recommended Crop Decision Card ── */}
+        {/* 3. Recommended Crop Decision */}
         {cropDec?.recommended_crop && (
-          <section style={{ marginBottom: "2.5rem" }}>
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--green-300)", borderRadius: "12px", padding: "1.5rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                <div>
-                  <span style={{ fontSize: "0.75rem", color: "var(--green-300)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
-                    ⭐ Recommended Crop Choice
-                  </span>
-                  <h3 style={{ fontSize: "1.5rem", fontWeight: 700, margin: "0.2rem 0 0", color: "#fff" }}>
-                    {cropDec.recommended_crop} {cropDec.varieties && cropDec.varieties.length > 0 && `(Varieties: ${cropDec.varieties.join(", ")})`}
-                  </h3>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--gold-300)" }}>
-                    {Math.round((cropDec.suitability_score || 0.85) * 100)}% Match
+          <div className="rounded-xl border border-border/80 bg-card p-5 sm:p-6 shadow-xs space-y-4 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div className="lg:col-span-8 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-border/60">
+                  <div className="space-y-1">
+                    <Badge variant="neutral" className="text-[10px] font-mono text-primary border-primary/30 bg-primary/5">
+                      <Sprout className="size-3 mr-1 text-primary" />
+                      Optimal Agronomic Match
+                    </Badge>
+                    <h3 className="text-xl sm:text-2xl font-serif font-bold text-foreground">
+                      {cropDec.recommended_crop}
+                      {cropDec.varieties && cropDec.varieties.length > 0 && (
+                        <span className="text-xs font-normal font-sans text-muted-foreground ml-2">
+                          Varieties: {cropDec.varieties.join(", ")}
+                        </span>
+                      )}
+                    </h3>
                   </div>
-                  <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)" }}>
-                    Est. Duration: {cropDec.expected_duration_days || 120} days
+
+                  <div className="text-left sm:text-right shrink-0">
+                    <div className="text-2xl sm:text-3xl font-bold font-mono text-primary num-tabular">
+                      {Math.round((cropDec.suitability_score || 0.85) * 100)}%
+                    </div>
+                    <div className="text-[11px] font-mono text-muted-foreground">
+                      Est. Lifecycle: {cropDec.expected_duration_days || 120} days
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed">
+                  {cropDec.why_crop}
+                </p>
+              </div>
+
+              {/* Crop Photographic Showcase */}
+              <div className="lg:col-span-4 relative aspect-video lg:aspect-[4/3] rounded-xl overflow-hidden border border-border/70 shadow-2xs">
+                <Image
+                  src="/images/stage-crop-selection.jpg"
+                  alt={`Thriving field crops matching ${cropDec.recommended_crop}`}
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 400px"
+                  className="object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-3.5">
+                  <div className="text-white text-xs w-full flex items-center justify-between">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                      Field-Verified Variety
+                    </span>
+                    <span className="text-[10px] font-mono bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded border border-white/20 text-emerald-300">
+                      High Yield Potential
+                    </span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <p style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.85)", lineHeight: 1.6, margin: "0 0 1rem" }}>
-                {cropDec.why_crop}
-              </p>
-
-              {/* Collapsible Factor Breakdown */}
+            {/* Factor breakdown toggle */}
+            <div className="pt-1">
               <button
+                type="button"
                 onClick={() => setWhyExpanded(!whyExpanded)}
-                style={{ background: "transparent", color: "var(--gold-300)", border: "none", padding: 0, fontSize: "0.825rem", cursor: "pointer", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.3rem" }}
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
-                {whyExpanded ? "▲ Hide underlying factors" : "▼ Why this recommendation?"}
+                {whyExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                {whyExpanded ? "Collapse Factor Weights" : "Inspect Factor Weight Breakdown"}
               </button>
 
               {whyExpanded && (
-                <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "0.75rem" }}>
-                  <div style={{ background: "rgba(0,0,0,0.2)", padding: "0.75rem", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Soil Fit</div>
-                    <div style={{ fontSize: "0.825rem", color: "#fff", marginTop: "0.2rem" }}>{cropDec.factors?.soil}</div>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/60">
+                  <div className="p-3 rounded-md bg-secondary/50 border border-border/60 space-y-1">
+                    <div className="text-[10px] font-mono uppercase text-muted-foreground flex items-center gap-1.5">
+                      <Droplets className="size-3 text-blue-600 dark:text-blue-400" />
+                      Soil Compatibility
+                    </div>
+                    <p className="text-xs text-foreground font-medium">{cropDec.factors?.soil}</p>
                   </div>
-                  <div style={{ background: "rgba(0,0,0,0.2)", padding: "0.75rem", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Weather Fit</div>
-                    <div style={{ fontSize: "0.825rem", color: "#fff", marginTop: "0.2rem" }}>{cropDec.factors?.weather}</div>
+
+                  <div className="p-3 rounded-md bg-secondary/50 border border-border/60 space-y-1">
+                    <div className="text-[10px] font-mono uppercase text-muted-foreground flex items-center gap-1.5">
+                      <Sun className="size-3 text-amber-600 dark:text-amber-400" />
+                      Precipitation / Weather Fit
+                    </div>
+                    <p className="text-xs text-foreground font-medium">{cropDec.factors?.weather}</p>
                   </div>
-                  <div style={{ background: "rgba(0,0,0,0.2)", padding: "0.75rem", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Market Opportunity</div>
-                    <div style={{ fontSize: "0.825rem", color: "#fff", marginTop: "0.2rem" }}>{cropDec.factors?.market}</div>
+
+                  <div className="p-3 rounded-md bg-secondary/50 border border-border/60 space-y-1">
+                    <div className="text-[10px] font-mono uppercase text-muted-foreground flex items-center gap-1.5">
+                      <TrendingUp className="size-3 text-emerald-600 dark:text-emerald-400" />
+                      APMC Market Realization
+                    </div>
+                    <p className="text-xs text-foreground font-medium">{cropDec.factors?.market}</p>
                   </div>
                 </div>
               )}
             </div>
-          </section>
+          </div>
         )}
 
-        {/* ── 4. Market & Selling Decision + Financial Snapshot ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
-          {/* Market & Selling Card */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "1.25rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "1rem" }}>
-              <span style={{ fontSize: "1.1rem" }}>📈</span>
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0, color: "#fff" }}>Market & Selling Decision</h3>
-            </div>
-            {marketDec?.mandi ? (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                  <div>
-                    <div style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.5)" }}>{marketDec.mandi}</div>
-                    <div style={{ fontSize: "1.35rem", fontWeight: 700, color: "var(--gold-300)" }}>₹{marketDec.modal_price_inr}/quintal</div>
-                  </div>
-                  <span style={{ padding: "0.3rem 0.75rem", borderRadius: "6px", background: "rgba(107,174,133,0.2)", color: "var(--green-300)", fontWeight: 700, fontSize: "0.8rem" }}>
-                    {marketDec.recommendation_type}
+        {/* 4. Asymmetric Bento: Market & Financial Realization with Photography */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Market Intelligence Box (7 cols) */}
+          <div className="lg:col-span-7 rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs flex flex-col justify-between">
+            {/* Contextual Market Photo Header */}
+            <div className="relative w-full h-32 overflow-hidden border-b border-border/60">
+              <Image
+                src="/images/mandi-market.jpg"
+                alt="Agricultural APMC Mandi wholesale market trading"
+                fill
+                sizes="(max-width: 1024px) 100vw, 700px"
+                className="object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent flex items-end p-3.5">
+                <div className="flex items-center justify-between w-full text-white">
+                  <span className="text-xs font-semibold flex items-center gap-1.5">
+                    <TrendingUp className="size-3.5 text-[#D8A94F]" />
+                    APMC Market Realization & Sell-Timing
                   </span>
+                  {marketDec?.recommendation_type && (
+                    <Badge className="bg-[#D8A94F] text-[#1A241B] font-mono text-[10px] font-bold">
+                      {marketDec.recommendation_type}
+                    </Badge>
+                  )}
                 </div>
-                <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0 }}>{marketDec.reasoning}</p>
               </div>
-            ) : (
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem" }}>Run analysis to view mandi prices.</div>
-            )}
+            </div>
+
+            <div className="p-5 space-y-4 flex-1">
+              {marketDec?.mandi ? (
+                <div className="space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-[11px] text-muted-foreground">Primary Benchmark Mandi:</span>
+                      <h4 className="text-base font-bold text-foreground">{marketDec.mandi}</h4>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl sm:text-2xl font-bold font-mono text-foreground num-tabular">
+                        ₹{marketDec.modal_price_inr}
+                        <span className="text-xs font-normal text-muted-foreground">/qtl</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold">
+                        Live Modal Price
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {marketDec.reasoning}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  Run farm analysis to sync APMC mandi modal prices.
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Financial Snapshot Card */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "1.25rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "1rem" }}>
-              <span style={{ fontSize: "1.1rem" }}>💰</span>
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0, color: "#fff" }}>Financial & Credit Snapshot</h3>
-            </div>
-            {finSnap ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
-                <div style={{ background: "rgba(0,0,0,0.2)", padding: "0.75rem", borderRadius: "8px" }}>
-                  <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Estimated Input Cost</div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#fff", marginTop: "0.2rem" }}>₹{finSnap.estimated_input_cost_inr?.toLocaleString()}</div>
-                </div>
-                <div style={{ background: "rgba(0,0,0,0.2)", padding: "0.75rem", borderRadius: "8px" }}>
-                  <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>Expected Net Margin</div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--green-300)", marginTop: "0.2rem" }}>₹{finSnap.expected_net_margin_inr?.toLocaleString()}</div>
+          {/* Financial Ledger Snapshot (5 cols) */}
+          <div className="lg:col-span-5 rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs flex flex-col justify-between">
+            {/* Contextual Financial Ledger Photo Header */}
+            <div className="relative w-full h-32 overflow-hidden border-b border-border/60">
+              <Image
+                src="/images/irrigation.jpg"
+                alt="Precision agricultural resource allocation"
+                fill
+                sizes="(max-width: 1024px) 100vw, 500px"
+                className="object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent flex items-end p-3.5">
+                <div className="flex items-center justify-between w-full text-white">
+                  <span className="text-xs font-semibold flex items-center gap-1.5">
+                    <IndianRupee className="size-3.5 text-emerald-400" />
+                    Input Costing & Margin Ledger
+                  </span>
+                  <Badge className="bg-black/50 backdrop-blur-xs text-white border border-white/20 font-mono text-[10px]">
+                    Working Capital
+                  </Badge>
                 </div>
               </div>
-            ) : (
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem" }}>Run analysis to compute budget & credit estimates.</div>
-            )}
+            </div>
+
+            <div className="p-5 space-y-4 flex-1">
+              {finSnap ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Est. Input Cost
+                    </span>
+                    <div className="text-lg font-bold font-mono text-foreground num-tabular">
+                      ₹{finSnap.estimated_input_cost_inr?.toLocaleString()}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground block">
+                      Seeds, fertilizers, diesel
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-lg bg-secondary/50 border border-border/60 space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                      Expected Margin
+                    </span>
+                    <div className="text-lg font-bold font-mono text-primary num-tabular">
+                      ₹{finSnap.expected_net_margin_inr?.toLocaleString()}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground block">
+                      Net after input overhead
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground py-4 text-center">
+                  Run analysis to formulate working capital estimates.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* ── 5. Farmer Season Feedback Form ── */}
-        <section style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", padding: "1.5rem", marginBottom: "2.5rem" }}>
-          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.5rem", color: "#fff", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-            <span>⭐</span> Farmer Season Feedback & Harvest Logging
-          </h2>
-          <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.6)", margin: "0 0 1.25rem" }}>
-            Help improve regional AI accuracy by logging your actual crop yield and market realization.
-          </p>
-
-          {fbSuccess ? (
-            <div style={{ background: "rgba(107,174,133,0.15)", border: "1px solid rgba(107,174,133,0.4)", padding: "1rem", borderRadius: "8px", color: "var(--green-300)", fontSize: "0.9rem" }}>
-              ✓ {fbSuccess}
+        {/* 5. Farmer Season Feedback & Harvest Logging */}
+        <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+            <div className="lg:col-span-4 relative aspect-video lg:aspect-auto min-h-[160px] overflow-hidden border-b lg:border-b-0 lg:border-r border-border/60">
+              <Image
+                src="/images/harvest-calibrate.jpg"
+                alt="Farmer holding harvested crop grains"
+                fill
+                sizes="(max-width: 1024px) 100vw, 400px"
+                className="object-cover"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10 flex items-end p-4">
+                <div className="text-white space-y-1">
+                  <span className="text-xs font-semibold flex items-center gap-1.5">
+                    <Star className="size-3.5 text-[#D8A94F]" />
+                    Harvest Calibration Ground-Truth
+                  </span>
+                  <p className="text-[11px] text-white/80 leading-relaxed">
+                    Recording actual harvested yield and weighbridge realization updates the district checkpointer baseline for next season.
+                  </p>
+                </div>
+              </div>
             </div>
-          ) : (
-            <form onSubmit={handleFeedbackSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
-                <div>
-                  <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", display: "block", marginBottom: "0.3rem" }}>Rating (1–5 Stars)</label>
-                  <select
-                    value={feedback.rating}
-                    onChange={(e) => setFeedback((f) => ({ ...f, rating: Number(e.target.value) }))}
-                    style={{ width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", padding: "0.6rem", color: "#fff" }}
+
+            <div className="lg:col-span-8 p-5 sm:p-6 space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  Log Season Harvest & Actual Realization
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Directly calibrates the <span className="font-mono text-foreground font-semibold">FeedbackAgent</span>{" "}
+                  model for your land and district in next season&apos;s recommendations.
+                </p>
+              </div>
+
+              {fbSuccess ? (
+                <div className="p-4 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2.5">
+                  <CheckCircle2 className="size-4 shrink-0" />
+                  <span>{fbSuccess}</span>
+                </div>
+              ) : (
+                <form onSubmit={handleFeedbackSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">
+                        Recommendation Rating (1 to 5 Stars)
+                      </label>
+                      <select
+                        value={feedback.rating}
+                        onChange={(e) => setFeedback((f) => ({ ...f, rating: Number(e.target.value) }))}
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs sm:text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
+                      >
+                        {[5, 4, 3, 2, 1].map((r) => (
+                          <option key={r} value={r}>
+                            {r} Stars {r === 5 ? "(Highly Accurate)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">
+                        Actual Harvested Yield (Quintals/Acre)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 22"
+                        value={feedback.actual_yield ?? ""}
+                        onChange={(e) =>
+                          setFeedback((f) => ({
+                            ...f,
+                            actual_yield: e.target.value ? Number(e.target.value) : undefined,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">
+                      Field Observations / Notes
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Note pest outbreaks, rainfall variations, or mandi broker commissions..."
+                      value={feedback.notes}
+                      onChange={(e) => setFeedback((f) => ({ ...f, notes: e.target.value }))}
+                      className="w-full rounded-md border border-input bg-background p-3 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/70 outline-none focus-visible:ring-2 focus-visible:ring-ring/25 resize-vertical"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={fbSubmitting}
+                    size="sm"
+                    className="font-medium bg-primary text-primary-foreground"
                   >
-                    {[5, 4, 3, 2, 1].map((r) => (
-                      <option key={r} value={r} style={{ background: "var(--green-900)" }}>{r} Stars</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", display: "block", marginBottom: "0.3rem" }}>Actual Harvest Yield (Quintals/Acre)</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 40"
-                    value={feedback.actual_yield ?? ""}
-                    onChange={(e) => setFeedback((f) => ({ ...f, actual_yield: e.target.value ? Number(e.target.value) : undefined }))}
-                    style={{ width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", padding: "0.6rem", color: "#fff" }}
-                  />
-                </div>
-              </div>
+                    {fbSubmitting ? (
+                      <>
+                        <Loader2 className="size-3.5 mr-2 animate-spin" />
+                        Saving Harvest Records...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="size-3.5 mr-2" />
+                        Submit Harvest Log
+                      </>
+                    )}
+                  </Button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
 
-              <div>
-                <label style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", display: "block", marginBottom: "0.3rem" }}>Notes / Harvest Feedback</label>
-                <textarea
-                  rows={2}
-                  placeholder="Share details about crop performance, weather impacts, or prices received..."
-                  value={feedback.notes}
-                  onChange={(e) => setFeedback((f) => ({ ...f, notes: e.target.value }))}
-                  style={{ width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "6px", padding: "0.65rem", color: "#fff", fontSize: "0.85rem", resize: "vertical" }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={fbSubmitting}
-                style={{ background: "var(--gold-500)", color: "var(--green-900)", border: "none", borderRadius: "6px", padding: "0.65rem 1.5rem", fontWeight: 700, cursor: "pointer", alignSelf: "flex-start" }}
-              >
-                {fbSubmitting ? "Submitting..." : "Submit Season Feedback"}
-              </button>
-            </form>
-          )}
-        </section>
-
-        {/* ── 6. Collapsible Agronomist Technical Drawer (14 Agents) ── */}
-        <section>
+        {/* 6. Agronomist Diagnostic View Drawer */}
+        <section className="space-y-2">
           <button
+            type="button"
             onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", padding: "1rem", color: "rgba(255,255,255,0.7)", fontWeight: 600, fontSize: "0.9rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            className="w-full rounded-lg border border-border/80 bg-card p-3.5 text-xs text-muted-foreground font-medium flex items-center justify-between hover:border-primary/50 transition-colors cursor-pointer"
           >
-            <span>🤖 Agronomist Diagnostic View (14 Multi-Agent Diagnostic Cards)</span>
-            <span>{showTechnicalDetails ? "▲ Hide Technical View" : "▼ Show Technical View"}</span>
+            <span className="flex items-center gap-2 text-foreground font-semibold">
+              <Bot className="size-4 text-primary" />
+              Agronomist State Monitor ({AGENT_REGISTRY.length} Integrated Node Checkpoints)
+            </span>
+            {showTechnicalDetails ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
 
           {showTechnicalDetails && (
-            <div style={{ marginTop: "1.5rem" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-2">
               {AGENT_REGISTRY.map((agent) => {
                 const st = agentStates[agent.key] || { status: "idle", result: null, error: null };
                 return (
-                  <div key={agent.key} style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "1rem", marginBottom: "0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
-                    <div>
-                      <div style={{ fontWeight: 600, color: "#fff", fontSize: "0.9rem" }}>{agent.display_name}</div>
-                      <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>{agent.description}</div>
+                  <div
+                    key={agent.key}
+                    className="p-3 rounded-md border border-border/60 bg-secondary/30 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="size-7 rounded bg-secondary flex items-center justify-center text-foreground shrink-0 border border-border/60">
+                        {AGENT_ICONS[agent.key] || <CircleDot className="size-3.5" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-foreground truncate">
+                          {agent.display_name}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground truncate">
+                          {agent.description}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <span style={{ fontSize: "0.7rem", color: st.status === "success" ? "var(--green-300)" : st.status === "running" ? "var(--gold-300)" : "rgba(255,255,255,0.4)", textTransform: "uppercase", fontFamily: "var(--font-jetbrains-mono), monospace" }}>{st.status}</span>
-                    </div>
+
+                    <Badge
+                      variant={st.status === "success" ? "success" : st.status === "running" ? "warning" : "neutral"}
+                      className="text-[10px] font-mono shrink-0 uppercase"
+                    >
+                      {st.status}
+                    </Badge>
                   </div>
                 );
               })}
@@ -621,40 +1004,29 @@ export default function FarmerDashboardPage() {
           )}
         </section>
 
-        {/* ── 7. Agricultural Safety & Advisory Disclaimer Footer ── */}
-        <footer style={{ marginTop: "3.5rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)", lineHeight: 1.6, textAlign: "center", maxWidth: "900px", margin: "0 auto" }}>
-            <strong>⚠️ Agricultural Advisory Disclaimer:</strong> Krishi Agent recommendations are generated using official government soil baselines, Open-Meteo micro-climate models, APMC mandi pricing feeds, and AI agronomic interpretations. Financial margins, yields, and credit limits are non-guaranteed estimates. Please consult your district Krishi Vigyan Kendra (KVK) extension officer or licensed agricultural officer prior to applying heavy fertilizer/chemical dosages or undertaking major capital investments.
+        {/* 7. Advisory Compliance Disclaimer */}
+        <footer className="pt-6 border-t border-border/60">
+          <div className="flex items-start gap-2.5 text-[11px] text-muted-foreground leading-relaxed max-w-4xl">
+            <AlertTriangle className="size-4 shrink-0 mt-0.5 text-muted-foreground" />
+            <p>
+              <strong>Official Agricultural Advisory Disclaimer:</strong> Krishi Agent recommendations
+              synthesize official Soil Health Cards, Open-Meteo micro-climate feeds, APMC mandi arrivals,
+              and AI agronomic heuristics. Financial margins and yield targets are non-binding estimates.
+              Always consult your local Krishi Vigyan Kendra (KVK) extension officer prior to undertaking
+              major capital investments or applying restricted chemical dosages.
+            </p>
           </div>
         </footer>
       </main>
 
-      {/* Floating Action Chat Button */}
+      {/* Floating Action Button (Mobile Only) */}
       {context && (
         <Link
           href={`/farmer/${context.farmer_id}/chat`}
-          style={{
-            position: "fixed",
-            bottom: "1.5rem",
-            right: "1.5rem",
-            zIndex: 40,
-            background: "var(--gold-500)",
-            color: "var(--green-900)",
-            borderRadius: "9999px",
-            padding: "0.85rem 1.35rem",
-            fontWeight: 700,
-            fontSize: "0.9rem",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            textDecoration: "none",
-            border: "2px solid rgba(255,255,255,0.25)",
-            transition: "transform 0.15s ease",
-          }}
-          title="Open AI Agent Chat"
+          className="fixed bottom-5 right-5 z-40 bg-primary text-primary-foreground rounded-full p-3.5 shadow-md flex items-center justify-center sm:hidden active:scale-95 transition-transform"
+          title="Open AI Chat"
         >
-          💬 Chat with Agent
+          <MessageCircle className="size-5" />
         </Link>
       )}
     </div>

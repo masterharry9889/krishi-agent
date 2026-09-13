@@ -2,6 +2,9 @@
 
 import React from "react";
 import { SUPPORTED_LANGUAGES } from "@/lib/api";
+import { Search, X, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface FarmerFilterBarProps {
   search: string;
@@ -45,7 +48,6 @@ export const FarmerFilterBar: React.FC<FarmerFilterBarProps> = ({
   onRefresh,
   loading = false,
 }) => {
-  // Combine default districts and any fetched unique districts
   const districts = Array.from(
     new Set([...DEFAULT_DISTRICTS, ...availableDistricts])
   ).sort();
@@ -53,40 +55,37 @@ export const FarmerFilterBar: React.FC<FarmerFilterBarProps> = ({
   const hasActiveFilters = Boolean(search || district || language || status);
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-xs mb-6">
-      <div className="flex flex-col space-y-3 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between lg:space-x-4">
+    <div className="rounded-lg border border-border/80 bg-card p-3.5 sm:p-4 shadow-2xs">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Search Input */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-[240px]">
           <label htmlFor="farmer-search" className="sr-only">
             Search farmers
           </label>
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
+            <Search className="size-4" />
           </div>
-          <input
+          <Input
             id="farmer-search"
             type="text"
-            placeholder="Search by name or phone..."
+            placeholder="Search by farmer name or phone..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-9 py-2 bg-stone-50 border border-stone-300 rounded-lg text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
+            className="pl-9 pr-8 text-xs sm:text-sm"
           />
           {search && (
             <button
+              type="button"
               onClick={() => onSearchChange("")}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-stone-400 hover:text-stone-600"
+              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-muted-foreground hover:text-foreground cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="size-3.5" />
             </button>
           )}
         </div>
 
         {/* Dropdown Filters & Status Segment */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* District Filter */}
           <div className="w-full sm:w-auto min-w-[140px]">
             <label htmlFor="district-select" className="sr-only">
@@ -96,7 +95,7 @@ export const FarmerFilterBar: React.FC<FarmerFilterBarProps> = ({
               id="district-select"
               value={district}
               onChange={(e) => onDistrictChange(e.target.value)}
-              className="w-full py-2 px-3 bg-stone-50 border border-stone-300 rounded-lg text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition cursor-pointer"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs sm:text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 cursor-pointer"
             >
               <option value="">All Districts</option>
               {districts.map((d) => (
@@ -116,7 +115,7 @@ export const FarmerFilterBar: React.FC<FarmerFilterBarProps> = ({
               id="language-select"
               value={language}
               onChange={(e) => onLanguageChange(e.target.value)}
-              className="w-full py-2 px-3 bg-stone-50 border border-stone-300 rounded-lg text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition cursor-pointer"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs sm:text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 cursor-pointer"
             >
               <option value="">All Languages</option>
               {Object.entries(SUPPORTED_LANGUAGES).map(([code, item]) => (
@@ -127,70 +126,51 @@ export const FarmerFilterBar: React.FC<FarmerFilterBarProps> = ({
             </select>
           </div>
 
-          {/* Status Segmented Pills */}
-          <div className="flex items-center bg-stone-100 p-1 rounded-lg border border-stone-200">
-            <button
-              type="button"
-              onClick={() => onStatusChange("")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
-                status === ""
-                  ? "bg-white text-stone-900 shadow-xs"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => onStatusChange("registered")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
-                status === "registered"
-                  ? "bg-emerald-700 text-white shadow-xs"
-                  : "text-stone-600 hover:text-emerald-800"
-              }`}
-            >
-              Registered
-            </button>
-            <button
-              type="button"
-              onClick={() => onStatusChange("deactivated")}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
-                status === "deactivated"
-                  ? "bg-stone-700 text-white shadow-xs"
-                  : "text-stone-600 hover:text-stone-900"
-              }`}
-            >
-              Deactivated
-            </button>
+          {/* Status Segmented Control */}
+          <div className="flex items-center bg-secondary/70 p-0.5 rounded-md border border-border/70 text-xs">
+            {[
+              { label: "All", value: "" },
+              { label: "Registered", value: "registered" },
+              { label: "Deactivated", value: "deactivated" },
+            ].map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => onStatusChange(item.value)}
+                className={`px-2.5 py-1 text-xs font-medium rounded transition cursor-pointer ${
+                  status === item.value
+                    ? "bg-background text-foreground shadow-2xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             {hasActiveFilters && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={onReset}
-                className="px-3 py-2 text-xs font-medium text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition"
                 title="Clear all filters"
+                className="text-xs text-muted-foreground"
               >
                 Reset
-              </button>
+              </Button>
             )}
 
-            <button
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={onRefresh}
               disabled={loading}
-              className="p-2 text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50"
               title="Refresh table"
             >
-              <svg
-                className={`w-4 h-4 ${loading ? "animate-spin text-amber-600" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
+              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </div>
       </div>

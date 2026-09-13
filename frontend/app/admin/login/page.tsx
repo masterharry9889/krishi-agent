@@ -2,12 +2,29 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { adminLogin, getAdminToken, setAdminToken, ApiError } from "@/lib/api";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Shield,
+  ShieldCheck,
+  User,
+  Wheat,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +47,7 @@ export default function AdminLoginPage() {
         setAdminToken(resp.access_token);
         router.replace("/admin");
       } else {
-        setError("Invalid token received from server.");
+        setError("Invalid token received from authentication server.");
       }
     } catch (err: unknown) {
       if (err instanceof ApiError) {
@@ -38,7 +55,7 @@ export default function AdminLoginPage() {
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Login failed. Please check your credentials and try again.");
+        setError("Invalid administrator username or password.");
       }
     } finally {
       setLoading(false);
@@ -46,114 +63,119 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-900 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-stone-800 via-stone-900 to-black flex items-center justify-center p-4 font-sans text-stone-100">
-      <div className="w-full max-w-md bg-stone-900/90 border border-amber-900/40 rounded-2xl p-8 shadow-2xl backdrop-blur-md relative overflow-hidden">
-        {/* Decorative Top Accent Bar */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-600 via-emerald-600 to-amber-500" />
+    <div className="min-h-screen bg-background flex flex-col justify-between p-4 sm:p-6 lg:p-8 text-foreground">
+      {/* Top Header */}
+      <div className="max-w-6xl w-full mx-auto flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-sm">
+          <div className="size-7 rounded bg-primary flex items-center justify-center text-primary-foreground shadow-2xs">
+            <Wheat className="size-4" />
+          </div>
+          <span>Krishi Agent</span>
+        </Link>
+        <Link href="/farmer/login">
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+            Farmer Portal →
+          </Button>
+        </Link>
+      </div>
 
-        {/* Brand Header */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-emerald-900/80 border border-amber-500/30 flex items-center justify-center shadow-inner">
-            <svg
-              className="w-7 h-7 text-amber-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+      {/* Main Login Card */}
+      <div className="max-w-md w-full mx-auto my-auto py-8">
+        <div className="rounded-lg border border-border/80 bg-card p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Badge variant="neutral" className="text-[10px] font-mono">
+                <ShieldCheck className="size-3 mr-1 text-primary" />
+                Administrative Access
+              </Badge>
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Sign In to Admin Portal
+            </h1>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Restricted portal for agronomists, KVK coordinators, and district registry officers.
+            </p>
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-start gap-2">
+              <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="admin-username" className="text-xs font-medium text-foreground">
+                Administrator Username
+              </label>
+              <Input
+                id="admin-username"
+                type="text"
+                required
+                disabled={loading}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
               />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-serif font-bold text-amber-100 tracking-tight">
-            Krishi Agent Admin
-          </h1>
-          <p className="text-xs text-stone-400 mt-1 font-sans">
-            Farmer Registry & Onboarding Portal
-          </p>
-        </div>
+            </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="mb-6 p-3.5 bg-rose-950/80 border border-rose-800/80 rounded-xl text-xs text-rose-200 flex items-start space-x-2.5 animate-in fade-in duration-150">
-            <svg
-              className="w-4 h-4 text-rose-400 shrink-0 mt-0.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <div className="flex-1 font-medium">{error}</div>
-          </div>
-        )}
+            <div className="space-y-1.5">
+              <label htmlFor="admin-password" className="text-xs font-medium text-foreground">
+                Password
+              </label>
+              <div className="relative">
+                <Input
+                  id="admin-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  disabled={loading}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter administrator password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label
-              htmlFor="admin-username"
-              className="block text-xs font-medium uppercase tracking-wider text-amber-200/80 mb-1.5"
-            >
-              Username
-            </label>
-            <input
-              id="admin-username"
-              type="text"
-              required
+            <Button
+              type="submit"
+              size="lg"
               disabled={loading}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2.5 bg-stone-800/80 border border-stone-700 rounded-xl text-sm text-stone-100 placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
-              placeholder="Enter admin username"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="admin-password"
-              className="block text-xs font-medium uppercase tracking-wider text-amber-200/80 mb-1.5"
+              className="w-full font-semibold mt-2"
             >
-              Password
-            </label>
-            <input
-              id="admin-password"
-              type="password"
-              required
-              disabled={loading}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-stone-800/80 border border-stone-700 rounded-xl text-sm text-stone-100 placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
-              placeholder="Enter admin password"
-            />
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Verifying Credentials...
+                </>
+              ) : (
+                <>
+                  Enter Admin Workspace
+                  <ArrowRight className="size-4 ml-1.5" />
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="pt-4 border-t border-border/60 text-center">
+            <span className="text-[11px] text-muted-foreground font-mono">
+              Role-Based Access Controlled • Session Activity Audited
+            </span>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 px-4 bg-amber-600 hover:bg-amber-500 text-stone-950 font-bold text-sm rounded-xl transition duration-150 shadow-md focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-          >
-            {loading && (
-              <svg className="w-4 h-4 animate-spin text-stone-950" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-            )}
-            <span>{loading ? "Authenticating..." : "Sign in →"}</span>
-          </button>
-        </form>
-
-        <div className="mt-8 pt-4 border-t border-stone-800 text-center text-[11px] text-stone-500 font-mono">
-          Protected System — Krishi Agent Admin v1.0
         </div>
+      </div>
+
+      {/* Footer info */}
+      <div className="max-w-6xl w-full mx-auto text-center text-muted-foreground text-[11px] font-mono">
+        Krishi Agent Enterprise Security • Authorized Personnel Only
       </div>
     </div>
   );
