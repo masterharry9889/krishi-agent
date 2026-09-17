@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from jose import jwt, JWTError
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 from pydantic import BaseModel, Field, field_validator
 
 # Ensure repository root is in sys.path so 'backend' module imports resolve correctly
@@ -146,6 +146,14 @@ def _safe_error_detail(action_name: str, exc: Exception) -> str:
     if ENVIRONMENT == "production":
         return f"{action_name} failed. An internal server error occurred. Please contact support."
     return f"{action_name} failed: {exc}"
+
+
+def _raise_db_unavailable(action_name: str, exc: Exception) -> None:
+    logger.exception("[%s] MongoDB connection failure", action_name)
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"{action_name} is temporarily unavailable. Please try again later.",
+    ) from exc
 
 
 # ─── Token helpers ───────────────────────────────────────────────
@@ -327,7 +335,11 @@ def farmer_login(
             detail="Password is required.",
         )
 
-    doc = fs.get_by_phone(payload.phone, sanitize=False)
+    try:
+        doc = fs.get_by_phone(payload.phone, sanitize=False)
+    except PyMongoError as exc:
+        _raise_db_unavailable("Farmer login", exc)
+
     if not doc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -377,7 +389,11 @@ def setup_farmer_password(
             detail="Password and Confirm Password do not match.",
         )
 
-    doc = fs.get_by_phone(payload.phone, sanitize=False)
+    try:
+        doc = fs.get_by_phone(payload.phone, sanitize=False)
+    except PyMongoError as exc:
+        _raise_db_unavailable("Password setup", exc)
+
     if not doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -393,7 +409,10 @@ def setup_farmer_password(
             )
 
     pwd_hash = hash_password(payload.password)
-    fs.update_farmer(doc["farmer_id"], {"password_hash": pwd_hash})
+    try:
+        fs.update_farmer(doc["farmer_id"], {"password_hash": pwd_hash})
+    except PyMongoError as exc:
+        _raise_db_unavailable("Password setup", exc)
     token = create_farmer_token(doc["farmer_id"], doc["season_id"])
 
     logger.info(f"[PASSWORD SETUP SUCCESS] phone={payload.phone} | farmer_id={doc['farmer_id']}")

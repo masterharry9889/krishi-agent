@@ -110,3 +110,23 @@ class TestPhase11AFarmerAuth:
         # Farmer A trying to orchestrate Farmer B's season -> MUST return 403
         res_orch_cross = client.post(f"/api/v1/farmers/{fb.farmer_id}/seasons/{fb.season_id}/orchestrate", headers=headers_a)
         assert res_orch_cross.status_code == 403
+
+    def test_login_returns_503_when_database_is_unavailable(self, client):
+        from pymongo.errors import ServerSelectionTimeoutError
+
+        class BrokenService:
+            def get_by_phone(self, phone, sanitize=False):
+                raise ServerSelectionTimeoutError("database unavailable")
+
+        from backend.main import get_farmer_service
+        app.dependency_overrides[get_farmer_service] = lambda: BrokenService()
+
+        try:
+            res = client.post(
+                "/api/v1/farmer/login",
+                json={"phone": "+919999999999", "password": "Pass12345"},
+            )
+            assert res.status_code == 503, res.text
+            assert "temporarily unavailable" in res.json()["detail"].lower()
+        finally:
+            app.dependency_overrides.clear()
