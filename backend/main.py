@@ -35,6 +35,7 @@ from backend.app.models import (
     OrchestrateRequest,
     FarmerFeedbackRequest,
     FarmerFeedbackResponse,
+    FarmerProfileUpdateRequest,
 )
 from backend.app.db import FarmerService, FarmerInDB
 
@@ -630,6 +631,35 @@ class ContextResponse(BaseModel):
     agent_outputs: list = []
 
 
+def _doc_to_profile(doc: dict) -> dict:
+    """Format MongoDB farmer document into full profile with agricultural and farming details."""
+    return {
+        "name": doc.get("name", ""),
+        "phone": doc.get("phone", ""),
+        "location": doc.get("district", "India"),
+        "district": doc.get("district", ""),
+        "state": doc.get("state", "Maharashtra"),
+        "village": doc.get("village", ""),
+        "pincode": doc.get("pincode", ""),
+        "language": doc.get("language", "hi"),
+        "land_size": doc.get("land_size", 1.0),
+        "ownership": doc.get("ownership", "owned"),
+        "soil_type": doc.get("soil_type", "Medium Black"),
+        "soil_ph": doc.get("soil_ph", "neutral"),
+        "water_source": doc.get("water_source", "rainfed"),
+        "irrigation_type": doc.get("irrigation_type", doc.get("water_source", "rainfed")),
+        "past_crops": doc.get("past_crops", []),
+        "current_crops": doc.get("current_crops", []),
+        "farming_type": doc.get("farming_type", "conventional"),
+        "experience_years": doc.get("experience_years", 5),
+        "cattle_count": doc.get("cattle_count", 0),
+        "equipment": doc.get("equipment", "tractor_hired"),
+        "has_storage": doc.get("has_storage", False),
+        "budget": doc.get("budget", 0.0),
+        "notes": doc.get("notes", ""),
+    }
+
+
 @app.get(
     "/api/v1/farmers/{farmer_id}/context",
     tags=["farmer"],
@@ -654,18 +684,7 @@ def get_farmer_context(
     return ContextResponse(
         farmer_id=doc["farmer_id"],
         season_id=doc["season_id"],
-        profile={
-            "name": doc.get("name", ""),
-            "phone": doc.get("phone", ""),
-            "location": doc.get("district", "India"),
-            "district": doc.get("district", ""),
-            "language": doc.get("language", "hi"),
-            "land_size": doc.get("land_size", 1.0),
-            "water_source": doc.get("water_source", "rainfed"),
-            "past_crops": doc.get("past_crops", []),
-            "budget": doc.get("budget", 0.0),
-            "notes": doc.get("notes", ""),
-        },
+        profile=_doc_to_profile(doc),
         phase=doc.get("phase", "onboarding"),
         agent_outputs=doc.get("agent_outputs", []),
     )
@@ -690,21 +709,81 @@ def get_farmer_context_by_season(
     return ContextResponse(
         farmer_id=doc["farmer_id"],
         season_id=doc["season_id"],
-        profile={
-            "name": doc.get("name", ""),
-            "phone": doc.get("phone", ""),
-            "location": doc.get("district", "India"),
-            "district": doc.get("district", ""),
-            "language": doc.get("language", "hi"),
-            "land_size": doc.get("land_size", 1.0),
-            "water_source": doc.get("water_source", "rainfed"),
-            "past_crops": doc.get("past_crops", []),
-            "budget": doc.get("budget", 0.0),
-            "notes": doc.get("notes", ""),
-        },
+        profile=_doc_to_profile(doc),
         phase=doc.get("phase", "onboarding"),
         agent_outputs=doc.get("agent_outputs", []),
     )
+
+
+@app.patch(
+    "/api/v1/farmers/{farmer_id}/profile",
+    tags=["farmer"],
+    response_model=ContextResponse,
+)
+def update_farmer_profile(
+    farmer_id: str,
+    payload: FarmerProfileUpdateRequest,
+    current_farmer: dict = Depends(get_current_farmer),
+    fs: FarmerService = Depends(get_farmer_service),
+):
+    """Update farmer profile details including personal, location, and agricultural fields."""
+    if current_farmer["farmer_id"] != farmer_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: Cannot update another farmer's profile.",
+        )
+
+    doc = fs.get_by_farmer_id(farmer_id)
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Farmer '{farmer_id}' not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+    if not update_data:
+        return ContextResponse(
+            farmer_id=doc["farmer_id"],
+            season_id=doc["season_id"],
+            profile=_doc_to_profile(doc),
+            phase=doc.get("phase", "onboarding"),
+            agent_outputs=doc.get("agent_outputs", []),
+        )
+
+    # Sync district and location if district updated
+    if "district" in update_data and update_data["district"]:
+        update_data["location"] = update_data["district"]
+
+    # Sync water_source and irrigation_type if either updated
+    if "irrigation_type" in update_data and "water_source" not in update_data:
+        update_data["water_source"] = update_data["irrigation_type"]
+    elif "water_source" in update_data and "irrigation_type" not in update_data:
+        update_data["irrigation_type"] = update_data["water_source"]
+
+    updated_doc = fs.update_farmer(farmer_id, update_data)
+    if not updated_doc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update farmer profile.")
+
+    logger.info(f"[FARMER PROFILE UPDATE] farmer_id={farmer_id} updated: {list(update_data.keys())}")
+
+    return ContextResponse(
+        farmer_id=updated_doc["farmer_id"],
+        season_id=updated_doc["season_id"],
+        profile=_doc_to_profile(updated_doc),
+        phase=updated_doc.get("phase", "onboarding"),
+        agent_outputs=updated_doc.get("agent_outputs", []),
+    )
+
+
+@app.patch(
+    "/api/v1/farmer/profile",
+    tags=["farmer"],
+    response_model=ContextResponse,
+)
+def update_current_farmer_profile(
+    payload: FarmerProfileUpdateRequest,
+    current_farmer: dict = Depends(get_current_farmer),
+    fs: FarmerService = Depends(get_farmer_service),
+):
+    """Update profile of currently authenticated farmer session."""
+    return update_farmer_profile(current_farmer["farmer_id"], payload, current_farmer, fs)
 
 
 # ─── Agent Execution ─────────────────────────────────────────────

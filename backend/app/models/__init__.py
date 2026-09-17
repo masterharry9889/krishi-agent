@@ -127,3 +127,52 @@ class FarmerFeedbackResponse(BaseModel):
     status: str = "success"
     message: str = "Feedback saved successfully."
     timestamp: str
+
+
+class FarmerProfileUpdateRequest(BaseModel):
+    """Request payload for PATCH /api/v1/farmers/{farmer_id}/profile."""
+    name: Optional[str] = Field(default=None, min_length=2, max_length=100, description="Full name of the farmer.")
+    district: Optional[str] = Field(default=None, min_length=2, max_length=100, description="District / Place name.")
+    state: Optional[str] = Field(default=None, max_length=100, description="State name.")
+    village: Optional[str] = Field(default=None, max_length=100, description="Village or Tehsil.")
+    pincode: Optional[str] = Field(default=None, max_length=10, description="Postal pincode.")
+    language: Optional[str] = Field(default=None, description="Preferred language code (e.g. hi, mr, ta, en).")
+    land_size: Optional[float] = Field(default=None, ge=0.05, le=100000.0, description="Farm land size in acres.")
+    ownership: Optional[str] = Field(default=None, max_length=50, description="Land ownership (owned, leased, etc.).")
+    soil_type: Optional[str] = Field(default=None, max_length=100, description="Soil classification.")
+    soil_ph: Optional[str] = Field(default=None, max_length=50, description="Soil pH or reaction.")
+    water_source: Optional[str] = Field(default=None, max_length=100, description="Primary water source.")
+    irrigation_type: Optional[str] = Field(default=None, max_length=100, description="Irrigation method.")
+    past_crops: Optional[List[str]] = Field(default=None, description="List of previous crops grown.")
+    current_crops: Optional[List[str]] = Field(default=None, description="Target/current season crops.")
+    farming_type: Optional[str] = Field(default=None, max_length=100, description="Farming methodology (conventional, organic, etc.).")
+    experience_years: Optional[int] = Field(default=None, ge=0, le=100, description="Years of farming experience.")
+    cattle_count: Optional[int] = Field(default=None, ge=0, le=1000, description="Number of livestock / cattle.")
+    equipment: Optional[str] = Field(default=None, max_length=100, description="Farm equipment & mechanization.")
+    has_storage: Optional[bool] = Field(default=None, description="Whether on-farm or warehouse storage is available.")
+    budget: Optional[float] = Field(default=None, ge=0.0, description="Working capital budget in INR.")
+    notes: Optional[str] = Field(default=None, max_length=2000, description="General farm observations and agronomic notes.")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return _sanitize_string(v, "Name")
+        return v
+
+    @field_validator("district")
+    @classmethod
+    def validate_district(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return _sanitize_string(v, "District")
+        return v
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            lang = v.strip().lower()
+            if lang not in SUPPORTED_LANGUAGES:
+                raise ValueError(f"Unsupported language '{v}'. Supported: {sorted(SUPPORTED_LANGUAGES)}")
+            return lang
+        return v

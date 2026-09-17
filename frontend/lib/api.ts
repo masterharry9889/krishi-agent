@@ -365,6 +365,43 @@ export interface FarmerProfile {
   past_crops: string[];
   budget: number;
   notes: string;
+  state?: string;
+  village?: string;
+  pincode?: string;
+  ownership?: string;
+  soil_type?: string;
+  soil_ph?: string;
+  irrigation_type?: string;
+  current_crops?: string[];
+  farming_type?: string;
+  experience_years?: number;
+  cattle_count?: number;
+  equipment?: string;
+  has_storage?: boolean;
+}
+
+export interface FarmerProfileUpdatePayload {
+  name?: string;
+  district?: string;
+  state?: string;
+  village?: string;
+  pincode?: string;
+  language?: string;
+  land_size?: number;
+  ownership?: string;
+  soil_type?: string;
+  soil_ph?: string;
+  water_source?: string;
+  irrigation_type?: string;
+  past_crops?: string[];
+  current_crops?: string[];
+  farming_type?: string;
+  experience_years?: number;
+  cattle_count?: number;
+  equipment?: string;
+  has_storage?: boolean;
+  budget?: number;
+  notes?: string;
 }
 
 export interface AgentOutputEntry {
@@ -485,6 +522,36 @@ export async function getFarmerContext(
     try {
       const data = await res.json();
       if (data?.detail) message = String(data.detail);
+    } catch { /* keep default */ }
+    throw new ApiError(message, res.status);
+  }
+
+  return res.json() as Promise<FarmerContextResponse>;
+}
+
+export async function updateFarmerProfile(
+  farmerId: string,
+  payload: FarmerProfileUpdatePayload
+): Promise<FarmerContextResponse> {
+  const res = await fetch(`${BACKEND_URL}/api/v1/farmers/${farmerId}/profile`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...farmerAuthHeaders(),
+    },
+    body: JSON.stringify(payload),
+    credentials: "same-origin",
+  });
+
+  if (!res.ok) {
+    let message = `Update failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.detail) {
+        message = Array.isArray(data.detail)
+          ? data.detail.map((d: { msg: string }) => d.msg).join(", ")
+          : String(data.detail);
+      }
     } catch { /* keep default */ }
     throw new ApiError(message, res.status);
   }

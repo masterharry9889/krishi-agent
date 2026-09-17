@@ -12,12 +12,14 @@ import {
   orchestrateFarmAnalysis,
   DASHBOARD_REQUIRED_AGENTS,
   submitFarmerFeedback,
+  formatLanguageLabel,
   FarmerContextResponse,
   FarmerInsight,
   FarmerFeedbackPayload,
   ApiError,
 } from "@/lib/api";
 import { AGENT_REGISTRY } from "@/lib/agents";
+import { FarmerProfileModal } from "@/components/farmer/FarmerProfileModal";
 import {
   Wheat,
   MessageCircle,
@@ -46,6 +48,8 @@ import {
   Camera,
   Activity,
   Layers,
+  UserCog,
+  Edit3,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -154,6 +158,9 @@ export default function FarmerDashboardPage() {
   });
   const [fbSubmitting, setFbSubmitting] = useState(false);
   const [fbSuccess, setFbSuccess] = useState<string | null>(null);
+
+  // Profile modal state
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // 1. Initial Load: Auth check and fetch context
   useEffect(() => {
@@ -379,20 +386,28 @@ export default function FarmerDashboardPage() {
             </Link>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-bold text-foreground truncate">
-                  {profile?.name || "Ramesh Patil"}
-                </h1>
+                <button
+                  type="button"
+                  onClick={() => setProfileModalOpen(true)}
+                  className="text-left group cursor-pointer"
+                  title="Click to edit user profile & agriculture details"
+                >
+                  <h1 className="text-sm sm:text-base font-bold text-foreground truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <span>{profile?.name || "Ramesh Patil"}</span>
+                    <Edit3 className="size-3 text-muted-foreground group-hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </h1>
+                </button>
                 <Badge variant="neutral" className="text-[10px] font-mono hidden sm:inline-flex">
-                  Plot #{context?.farmer_id || "MH-NSK-0847"}
+                  Plot #{context?.farmer_id ? context.farmer_id.slice(0, 8) : "MH-NSK-0847"}
                 </Badge>
               </div>
               <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
                 <MapPin className="size-3 shrink-0 text-primary" />
-                <span>{profile?.district || "Nashik"}, Maharashtra</span>
+                <span>{profile?.district || "Nashik"}, {profile?.state || "Maharashtra"}</span>
                 <span>•</span>
                 <span className="font-mono">{profile?.land_size || 4.2} Acres</span>
                 <span>•</span>
-                <span className="uppercase font-mono">{profile?.language || "mr"} (Marathi)</span>
+                <span className="font-medium">{formatLanguageLabel(profile?.language || "mr")}</span>
               </p>
             </div>
           </div>
@@ -402,6 +417,18 @@ export default function FarmerDashboardPage() {
               <CalendarDays className="size-3 mr-1.5" />
               Kharif 2026
             </Badge>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setProfileModalOpen(true)}
+              className="font-semibold text-xs border-border/80 hover:border-primary/50 hover:bg-secondary/70 gap-1.5 cursor-pointer"
+              title="Edit Profile & Agricultural Details"
+            >
+              <UserCog className="size-3.5 text-primary" />
+              <span className="hidden sm:inline">Profile</span>
+              <span className="sm:hidden">Profile</span>
+            </Button>
 
             <Link href={context ? `/farmer/${context.farmer_id}/chat` : "/farmer/login"}>
               <Button size="sm" variant="accent" className="font-semibold text-xs">
@@ -473,6 +500,47 @@ export default function FarmerDashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Farmland Attributes & Telemetry Summary Bar */}
+        <div className="rounded-xl border border-border/80 bg-secondary/30 p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-foreground">
+            <div className="flex items-center gap-1.5 bg-background/80 px-2.5 py-1 rounded-md border border-border/60">
+              <Layers className="size-3.5 text-primary shrink-0" />
+              <span className="text-muted-foreground">Soil:</span>
+              <span className="font-semibold">{profile?.soil_type || "Medium Black Soil"}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-background/80 px-2.5 py-1 rounded-md border border-border/60">
+              <Droplets className="size-3.5 text-blue-500 shrink-0" />
+              <span className="text-muted-foreground">Water:</span>
+              <span className="font-semibold">{profile?.irrigation_type || profile?.water_source || "Drip Irrigation"}</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-background/80 px-2.5 py-1 rounded-md border border-border/60">
+              <Sprout className="size-3.5 text-emerald-500 shrink-0" />
+              <span className="text-muted-foreground">Practice:</span>
+              <span className="font-semibold">{profile?.farming_type || "Conventional"}</span>
+            </div>
+
+            {profile?.current_crops && profile.current_crops.length > 0 && (
+              <div className="hidden lg:flex items-center gap-1.5 bg-background/80 px-2.5 py-1 rounded-md border border-border/60">
+                <Wheat className="size-3.5 text-amber-500 shrink-0" />
+                <span className="text-muted-foreground">Crops:</span>
+                <span className="font-semibold truncate max-w-[200px]">{profile.current_crops.join(", ")}</span>
+              </div>
+            )}
+          </div>
+
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => setProfileModalOpen(true)}
+            className="text-xs font-semibold text-primary hover:text-primary hover:bg-primary/10 self-start md:self-auto gap-1 cursor-pointer"
+          >
+            <UserCog className="size-3.5" />
+            <span>Edit Farm Details</span>
+          </Button>
         </div>
 
         {/* 1. Farmland Command Hero Banner */}
@@ -1028,6 +1096,16 @@ export default function FarmerDashboardPage() {
         >
           <MessageCircle className="size-5" />
         </Link>
+      )}
+
+      {/* Farmer Profile & Agricultural Telemetry Modal */}
+      {context && (
+        <FarmerProfileModal
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          context={context}
+          onProfileUpdated={(updatedCtx) => setContext(updatedCtx)}
+        />
       )}
     </div>
   );
